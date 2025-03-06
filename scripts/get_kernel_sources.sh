@@ -1,67 +1,115 @@
 #!/bin/bash
 set -e  # Exit on error
 
-# Enable logging
-LOG_FILE="/var/log/jetson_kernel_sources.log"
-VERBOSE=0
+# Define log directory and file
+LOG_DIR="$(dirname "$0")/logs"
+LOG_FILE="$LOG_DIR/get_kernel_sources.log"
 
-# Parse command-line options
-while getopts "v" opt; do
-  case ${opt} in
-    v) VERBOSE=1 ;;
-    *) echo "[ERROR] Invalid option" && exit 1 ;;
-  esac
-done
-
-log() {
-  local msg="$1"
-  echo "[INFO] $(date +"%Y-%m-%d %H:%M:%S") - ${msg}" | tee -a "$LOG_FILE"
-}
-
-verbose_log() {
-  if [[ $VERBOSE -eq 1 ]]; then
-    echo "[DEBUG] $(date +"%Y-%m-%d %H:%M:%S") - ${1}" | tee -a "$LOG_FILE"
-  fi
-}
-
-# Extract L4T version details from /etc/nv_tegra_release
-L4T_INFO=$(head -n1 /etc/nv_tegra_release)
-L4T_MAJOR=$(echo "$L4T_INFO" | awk '{print $2}' | tr -d '()')  # Extract "R36"
-L4T_MINOR=$(echo "$L4T_INFO" | awk '{print $4}')               # Extract "4.3"
-
-# Construct download URL
-SOURCE_URL="https://developer.nvidia.com/downloads/embedded/l4t/r${L4T_MAJOR}_release_v${L4T_MINOR}/sources/public_sources.tbz2"
+# Define kernel source directory (native Jetson builds use /usr/src/)
 KERNEL_SRC_DIR="/usr/src/kernel"
 
-log "Detected L4T version: ${L4T_MAJOR} (${L4T_MINOR})"
-log "Fetching kernel sources from: $SOURCE_URL"
+# Ensure the logs directory exists
+mkdir -p "$LOG_DIR"
 
-# Download the kernel source tarball
-if ! wget -O kernel_src.tbz2 "$SOURCE_URL"; then
-  echo "[ERROR] $(date +"%Y-%m-%d %H:%M:%S") - Download failed! Check internet or NVIDIA repository." | tee -a "$LOG_FILE" >&2
+# Default behavior (interactive mode)
+FORCE_REPLACE=0
+FORCE_BACKUP=0
+
+# Check if user has sudo privileges
+if [[ $EUID -ne 0 ]]; then
+  if ! sudo -v; then
+    echo "[ERROR] This script requires sudo privileges. Please run with sudo access."
+    exit 1
+  fi
+fi
+
+# Parse command-line options
+while [[ "$#" -gt 0 ]]; do
+  case $1 in
+    --force-replace) FORCE_REPLACE=1 ;;
+    --force-backup) FORCE_BACKUP=1 ;;
+    *) echo "[ERROR] Invalid option: $1" && exit 1 ;;
+  esac
+  shift
+done
+
+# Logging function
+log() {
+  echo "[INFO] $(date +"%Y-%m-%d %H:%M:%S") - ${1}" | tee -a "$LOG_FILE"
+}
+
+# Extract L4T version details
+L4T_INFO=$(head -n1 /etc/nv_tegra_release)
+L4T_MAJOR=$(echo "$L4T_INFO" | awk '{print $2}' | tr -d '()')
+L4T_MINOR=$(echo "$L4T_INFO" | awk '{print $4}')
+
+# Construct the kernel source URL
+SOURCE_URL="https://developer.nvidia.com/embedded/l4t/r${L4T_MAJOR}_release_v${L4T_MINOR}/sources/public_sources.tbz2"
+
+log "Detected L4T version: ${L4T_MAJOR} (${L4T_MINOR})"
+log "Kernel sources directory: $KERNEL_SRC_DIR"
+
+# Check if kernel sources already exist
+if [[ -d "$KERNEL_SRC_DIR" ]]; then
+  if [[ "$FORCE_REPLACE" -eq 1 ]]; then
+    log "Forcing deletion of existing kernel sources..."
+    sudo rm -rf "$KERNEL_SRC_DIR"
+
+  elif [[ "$FORCE_BACKUP" -eq 1 ]]; then
+    TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+    BACKUP_DIR="${KERNEL_SRC_DIR}_backup_${TIMESTAMP}"
+    log "Forcing backup of existing kernel sources to $BACKUP_DIR..."
+    sudo mv "$KERNEL_SRC_DIR" "$BACKUP_DIR"
+
+  else
+    echo "Kernel sources already exist at $KERNEL_SRC_DIR."
+    echo "What would you like to do?"
+    echo "[K]eep existing sources (default)"
+    echo "[R]eplace (delete and re-download)"
+    echo "[B]ackup and download fresh sources"
+
+    read -rp "Enter your choice (K/R/B): " USER_CHOICE
+
+    case "$USER_CHOICE" in
+      [Rr]* ) 
+        log "Deleting existing kernel sources..."
+        sudo rm -rf "$KERNEL_SRC_DIR"
+        ;;
+      [Bb]* ) 
+        TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+        BACKUP_DIR="${KERNEL_SRC_DIR}_backup_${TIMESTAMP}"
+        log "Backing up existing kernel sources to $BACKUP_DIR..."
+        sudo mv "$KERNEL_SRC_DIR" "$BACKUP_DIR"
+        ;;
+      * ) 
+        log "Keeping existing kernel sources. Skipping download."
+        exit 0
+        ;;
+    esac
+  fi
+fi
+
+log "Downloading kernel sources from: $SOURCE_URL"
+
+# Download the kernel source tarball (No sudo needed for downloading)
+if ! wget -N "$SOURCE_URL" -O public_sources.tbz2; then
+  log "[ERROR] Download failed! Check NVIDIA repository or internet connection."
   exit 1
 fi
 
-# Extract kernel sources
-mkdir -p "$KERNEL_SRC_DIR"
-tar -xjf kernel_src.tbz2 -C "$KERNEL_SRC_DIR" --strip-components=3 Linux_for_Tegra/source/public/kernel_src.tbz2
-rm kernel_src.tbz2
+log "Download successful. Extracting sources..."
 
-log "Kernel sources extracted to: $KERNEL_SRC_DIR"
+# Extract public_sources.tbz2 to find kernel_src.tbz2
+sudo tar -xvf public_sources.tbz2 Linux_for_Tegra/source/public/kernel_src.tbz2 --strip-components=3
 
-# Copy the running kernel configuration
+# Extract the inner kernel source archive
+sudo tar -xvf kernel_src.tbz2 -C "$KERNEL_SRC_DIR"
+rm kernel_src.tbz2 public_sources.tbz2
+
+log "Kernel sources extracted to $KERNEL_SRC_DIR"
+
+# Copy the current kernel config (requires sudo)
 log "Copying current kernel config..."
-if ! zcat /proc/config.gz > "$KERNEL_SRC_DIR/.config"; then
-  echo "[WARNING] $(date +"%Y-%m-%d %H:%M:%S") - Unable to copy kernel config! Proceeding without it." | tee -a "$LOG_FILE"
-fi
+sudo zcat /proc/config.gz > "$KERNEL_SRC_DIR/.config"
 
-# Summary report
-echo "---------------------------------------"
-echo " Kernel Source Download Summary"
-echo "---------------------------------------"
-echo " L4T Version   : ${L4T_MAJOR} (${L4T_MINOR})"
-echo " Download URL  : ${SOURCE_URL}"
-echo " Extracted To  : ${KERNEL_SRC_DIR}"
-echo " Kernel Config : Copied from /proc/config.gz"
-echo "---------------------------------------"
 log "Kernel source setup complete!"
