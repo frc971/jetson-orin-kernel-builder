@@ -38,16 +38,15 @@ log() {
   echo "[INFO] $(date +"%Y-%m-%d %H:%M:%S") - ${1}" | tee -a "$LOG_FILE"
 }
 
-# Extract L4T version details
-L4T_INFO=$(head -n1 /etc/nv_tegra_release)
-L4T_MAJOR=$(echo "$L4T_INFO" | awk '{print $2}' | tr -d '()')
-L4T_MINOR=$(echo "$L4T_INFO" | awk '{print $4}')
-
-# Construct the kernel source URL
-SOURCE_URL="https://developer.nvidia.com/embedded/l4t/r${L4T_MAJOR}_release_v${L4T_MINOR}/sources/public_sources.tbz2"
+# Extract L4T major version and revision number using sed
+L4T_MAJOR=$(sed -n 's/^.*R\([0-9]\+\).*/\1/p' /etc/nv_tegra_release)
+L4T_MINOR=$(sed -n 's/^.*REVISION: \([0-9]\+\(\.[0-9]\+\)*\).*/\1/p' /etc/nv_tegra_release)
 
 log "Detected L4T version: ${L4T_MAJOR} (${L4T_MINOR})"
 log "Kernel sources directory: $KERNEL_SRC_DIR"
+
+# Construct the kernel source URL
+SOURCE_URL="https://developer.nvidia.com/embedded/l4t/r${L4T_MAJOR}_release_v${L4T_MINOR}/sources/public_sources.tbz2"
 
 # Check if kernel sources already exist
 if [[ -d "$KERNEL_SRC_DIR" ]]; then
