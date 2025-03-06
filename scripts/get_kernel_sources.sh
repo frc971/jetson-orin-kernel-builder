@@ -1,4 +1,5 @@
 #!/bin/bash
+# Gets the Kernel source for Jetson Linux 36.X (Ubuntu 22.04 Jammy)
 set -e  # Exit on error
 
 # Define log directory and file
@@ -42,10 +43,8 @@ log() {
 L4T_MAJOR=$(sed -n 's/^.*R\([0-9]\+\).*/\1/p' /etc/nv_tegra_release)
 L4T_MINOR=$(sed -n 's/^.*REVISION: \([0-9]\+\(\.[0-9]\+\)*\).*/\1/p' /etc/nv_tegra_release)
 
-# Construct the kernel source URL and checksum URL
 SOURCE_BASE="https://developer.nvidia.com/embedded/l4t/r${L4T_MAJOR}_release_v${L4T_MINOR}/sources"
 SOURCE_FILE="public_sources.tbz2"
-CHECKSUM_FILE="${SOURCE_FILE}.sha1sum"
 
 log "Detected L4T version: ${L4T_MAJOR} (${L4T_MINOR})"
 log "Kernel sources directory: $KERNEL_SRC_DIR"
@@ -96,9 +95,9 @@ wget -N "$SOURCE_BASE/$SOURCE_FILE"
 log "Extracting sources..."
 
 # Extract kernel source and related components
-sudo tar -xvf "$SOURCE_FILE" Linux_for_Tegra/source/public/kernel_src.tbz2 \
-                           Linux_for_Tegra/source/public/kernel_oot_modules_src.tbz2 \
-                           Linux_for_Tegra/source/public/nvidia_kernel_display_driver_source.tbz2 --strip-components=3
+tar -xvf "$SOURCE_FILE" Linux_for_Tegra/source/kernel_src.tbz2 \
+                           Linux_for_Tegra/source/kernel_oot_modules_src.tbz2 \
+                           Linux_for_Tegra/source/nvidia_kernel_display_driver_source.tbz2 --strip-components=2
 
 # Extract each component separately into /usr/src/
 log "Extracting kernel source..."
@@ -109,12 +108,23 @@ log "Extracting NVIDIA display driver source..."
 sudo tar -xvf nvidia_kernel_display_driver_source.tbz2 -C "$KERNEL_SRC_DIR"
 
 # Cleanup tarballs
-rm kernel_src.tbz2 kernel_oot_modules_src.tbz2 nvidia_kernel_display_driver_source.tbz2 "$SOURCE_FILE" "$CHECKSUM_FILE"
+rm kernel_src.tbz2 kernel_oot_modules_src.tbz2 nvidia_kernel_display_driver_source.tbz2 "$SOURCE_FILE" 
 
 log "Kernel sources and modules extracted to $KERNEL_SRC_DIR"
 
 # Copy the current kernel config (requires sudo)
 log "Copying current kernel config..."
-sudo zcat /proc/config.gz > "$KERNEL_SRC_DIR/kernel/.config"
+sudo zcat /proc/config.gz | sudo tee "${KERNEL_SRC_DIR}kernel/kernel-jammy-src/.config" > /dev/null
+# A release version is typically something like: 4.9.253-tegra
+# We gather the local version (anything after the release numbers, starting with the '-') to
+# set the local version for the kernel build process.
+KERNEL_VERSION=$(uname -r)
+LOCAL_VERSION="-$(echo ${KERNEL_VERSION} | cut -d "-" -f2-)"
+# Default to the current local version
+# Should be "-tegra"
+cd ${KERNEL_SRC_DIR}kernel/kernel-jammy-src/
+sudo cp .config .config.orig
+sudo bash scripts/config --file .config \
+	--set-str LOCALVERSION $LOCAL_VERSION
 
 log "Kernel source setup complete!"
