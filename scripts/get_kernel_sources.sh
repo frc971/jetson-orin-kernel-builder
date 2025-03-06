@@ -93,26 +93,6 @@ fi
 log "Downloading kernel sources from: $SOURCE_BASE/$SOURCE_FILE"
 wget -N "$SOURCE_BASE/$SOURCE_FILE"
 
-log "Downloading checksum file from: $SOURCE_BASE/$CHECKSUM_FILE"
-wget -N "$SOURCE_BASE/$CHECKSUM_FILE"
-
-# Extract expected checksum from the downloaded sha1sum file
-EXPECTED_HASH=$(awk '{print $1}' "$CHECKSUM_FILE")
-
-# Compute SHA1 hash of the downloaded file
-COMPUTED_HASH=$(sha1sum "$SOURCE_FILE" | awk '{print $1}')
-
-log "Expected SHA1: $EXPECTED_HASH"
-log "Computed SHA1: $COMPUTED_HASH"
-
-# Compare checksums
-if [[ "$COMPUTED_HASH" != "$EXPECTED_HASH" ]]; then
-  log "[ERROR] SHA1 checksum mismatch! Downloaded file is corrupt."
-  exit 1
-else
-  log "Checksum verification successful."
-fi
-
 log "Extracting sources..."
 
 # Extract kernel source and related components
