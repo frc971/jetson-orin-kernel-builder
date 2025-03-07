@@ -14,6 +14,9 @@ echo_info() {
     echo "$1"
 }
 
+# Capture the original directory
+ORIGINAL_DIR=$(pwd)
+
 # Default source directory
 SOURCE_TARGET="/usr/src"
 KERNEL_SRC="${SOURCE_TARGET}/kernel/kernel-jammy-src"
@@ -59,7 +62,7 @@ else
     kernel_version=$(uname -r)
     
     # Define README file name
-    readme_file="README_modules_install_${kernel_version}.txt"
+    readme_file="${ORIGINAL_DIR}/README_modules_install_${kernel_version}.txt"
     
     # Define README content
     readme_content="
