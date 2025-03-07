@@ -55,6 +55,13 @@ cd "$MAKE_DIRECTORY" || exit 1
 
 echo "Building kernel in: $MAKE_DIRECTORY"
 
+# Remove any existing Image file to ensure a fresh build
+IMAGE_FILE="$MAKE_DIRECTORY/arch/arm64/boot/Image"
+if [ -f "$IMAGE_FILE" ]; then
+    echo "Removing old kernel Image file..."
+    sudo rm -f "$IMAGE_FILE"
+fi
+
 # Get the number of CPUs and determine job count
 NUM_CPU=$(nproc)
 JOBS=$((NUM_CPU > 1 ? NUM_CPU - 1 : 1))
@@ -68,5 +75,10 @@ if ! sudo bash -c "time make -j$JOBS Image 2>&1 | tee $LOG_FILE"; then
     fi
 fi
 
-echo "Kernel Image is located at: $MAKE_DIRECTORY/arch/arm64/boot/Image"
+if [ -f "$MAKE_DIRECTORY/arch/arm64/boot/Image" ]; then
+    echo "Kernel Image is located at: $MAKE_DIRECTORY/arch/arm64/boot/Image"
+else
+    echo "Kernel Image was not generated. Check $LOG_FILE for details."
+    exit 1
+fi
 echo "Build logs are saved in: $LOG_FILE"
