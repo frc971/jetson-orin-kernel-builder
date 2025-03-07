@@ -45,9 +45,9 @@ if [ ! -d "$MAKE_DIRECTORY" ]; then
 fi
 
 # Ensure logs directory exists with appropriate permissions
-LOGS_DIR="$MAKE_DIRECTORY/logs"
-sudo mkdir -p "$LOGS_DIR"
-sudo chown $(whoami):$(whoami) "$LOGS_DIR"
+LOGS_DIR="$(pwd)/logs"
+mkdir -p "$LOGS_DIR"
+
 LOG_FILE="$LOGS_DIR/kernel_build.log"
 
 # Navigate to kernel source directory
