@@ -15,6 +15,10 @@ fi
 flag="$1"
 [[ "$flag" =~ ^CONFIG_ ]] || flag="CONFIG_$flag"
 
+# Global variables
+declare -A processed_flags
+config_file="$KERNEL_URI/.config"
+
 # Function to find the Kconfig file defining the flag
 find_kconfig_file() {
     local flag_name="${1#CONFIG_}"
@@ -63,73 +67,93 @@ get_config_status() {
     fi
 }
 
-### Step 1: Search Makefiles for the Flag
-echo "Searching for $flag in Makefiles..."
-while IFS= read -r line; do
-    file=$(echo "$line" | cut -d: -f1)
-    content=$(echo "$line" | cut -d: -f2-)
-    if [[ "$content" =~ ^obj-\$\($flag\)[[:space:]]*\+=[[:space:]]*([^ ]+)\.o ]]; then
-        module="${BASH_REMATCH[1]}"
-        type="Module flag"
-    elif [[ "$content" =~ ^([a-z0-9_-]+)-\$\($flag\)[[:space:]]*\+=[[:space:]]* ]]; then
-        module="${BASH_REMATCH[1]}"
-        type="Feature flag"
-    fi
-    if [ -n "$module" ]; then
-        rel_dir=$(dirname "$file" | sed "s|^$KERNEL_URI/||")
-        echo "$type: $flag"
-        echo "Module name: $module"
-        echo "Module path: $rel_dir/$module.ko"
-        break
-    fi
-done < <(grep -r --include=Makefile "\$($flag)" "$KERNEL_URI" 2>/dev/null)
+# Recursive function to process a flag and its dependencies
+process_flag() {
+    local flag="$1"
 
-# If no module found, report an error and exit
-if [ -z "$module" ]; then
-    echo "Error: No module found for $flag in $KERNEL_URI"
-    exit 1
-fi
+    # Skip if already processed to prevent cycles
+    if [[ -n "${processed_flags[$flag]}" ]]; then
+        return
+    fi
+    processed_flags[$flag]=1
 
-### Step 2: Find and Parse Kconfig File
-kconfig_file=$(find_kconfig_file "$flag")
-if [ -z "$kconfig_file" ]; then
-    echo "Warning: Kconfig file for $flag not found"
-else
+    # Find Kconfig file
+    kconfig_file=$(find_kconfig_file "$flag")
+    if [ -z "$kconfig_file" ]; then
+        echo "----- Flag: $flag -----"
+        echo "Warning: Kconfig definition not found"
+        return
+    fi
+
     # Extract config block
     block=$(extract_config_block "$kconfig_file" "$flag")
-    if [ -z "$block" ]; then
-        echo "Warning: Config block for $flag not found in $kconfig_file"
+    type=$(get_type "$block")
+    deps=$(get_dependencies "$block")
+
+    # Determine possible modes
+    case "$type" in
+        bool) modes="y or n" ;;
+        tristate) modes="y, m, or n" ;;
+        *) modes="unknown" ;;
+    esac
+
+    # Find module information
+    module_info=$(grep -r --include=Makefile "\$($flag)" "$KERNEL_URI" 2>/dev/null)
+    if echo "$module_info" | grep -q "obj-\$\($flag\)"; then
+        module_line=$(echo "$module_info" | grep "obj-\$\($flag\)" | head -n 1)
+        module=$(echo "$module_line" | sed -r 's/.*\+= ([^ ]+)\.o/\1/')
+        rel_dir=$(dirname "$(echo "$module_line" | cut -d: -f1)" | sed "s|^$KERNEL_URI/||")
+        module_type="Module"
+    elif echo "$module_info" | grep -q "[a-z0-9_-]+-\$\($flag\)"; then
+        feature_line=$(echo "$module_info" | grep "[a-z0-9_-]+-\$\($flag\)" | head -n 1)
+        module=$(echo "$feature_line" | sed -r 's/([a-z0-9_-]+)-\$\('$flag'\).*/\1/')
+        rel_dir=$(dirname "$(echo "$feature_line" | cut -d: -f1)" | sed "s|^$KERNEL_URI/||")
+        module_type="Feature of $module"
     else
-        # Determine possible modes from type
-        type=$(get_type "$block")
-        case "$type" in
-            bool) modes="y or n" ;;
-            tristate) modes="y, m, or n" ;;
-            *) modes="unknown" ;;
-        esac
-        echo "Possible modes: $modes"
-
-        # Extract and display dependencies
-        deps=$(get_dependencies "$block")
-        if [ -n "$deps" ]; then
-            echo "Dependencies:"
-            unique_deps=$(get_unique_deps "$deps")
-            for dep in $unique_deps; do
-                dep_flag="CONFIG_$dep"
-                status=$(get_config_status "$KERNEL_URI/.config" "$dep_flag")
-                echo "  $dep_flag: $status"
-            done
-        else
-            echo "No dependencies"
-        fi
+        module_type="Simple flag"
     fi
-fi
 
-### Step 3: Check Flag Status in .config
-echo "In .config:"
-if [ -f "$KERNEL_URI/.config" ]; then
-    line=$(grep "$flag" "$KERNEL_URI/.config" | head -n 1)
-    [ -n "$line" ] && echo "$line" || echo "$flag cannot be found"
-else
-    echo "Warning: .config file not found in $KERNEL_URI; cannot determine if $flag or its dependencies are enabled"
-fi
+    # Display header and information
+    echo "----- $module_type: $flag -----"
+    if [ "$module_type" == "Module" ]; then
+        echo "Module name: $module"
+        echo "Module path: $rel_dir/$module.ko"
+    elif [ "$module_type" == "Feature of $module" ]; then
+        echo "Part of module: $module"
+        echo "Module path: $rel_dir/$module.ko"
+    fi
+    echo "Type: $type"
+    echo "Possible modes: $modes"
+
+    # Display dependencies
+    if [ -n "$deps" ]; then
+        echo "Dependencies:"
+        unique_deps=$(get_unique_deps "$deps")
+        for dep in $unique_deps; do
+            dep_flag="CONFIG_$dep"
+            status=$(get_config_status "$config_file" "$dep_flag")
+            echo "  $dep_flag: $status"
+        done
+    else
+        echo "No dependencies"
+    fi
+
+    # Display flag status in .config
+    echo "In .config:"
+    if [ -f "$config_file" ]; then
+        line=$(grep "$flag" "$config_file" | head -n 1)
+        [ -n "$line" ] && echo "$line" || echo "$flag cannot be found"
+    else
+        echo "Warning: .config file not found; cannot determine status"
+    fi
+
+    # Recurse for all dependencies
+    if [ -n "$unique_deps" ]; then
+        for dep in $unique_deps; do
+            process_flag "CONFIG_$dep"
+        done
+    fi
+}
+
+# Start processing the initial flag
+process_flag "$flag"
