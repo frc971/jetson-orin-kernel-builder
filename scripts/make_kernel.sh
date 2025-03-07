@@ -44,23 +44,24 @@ if [ ! -d "$MAKE_DIRECTORY" ]; then
     exit 1
 fi
 
+# Ensure logs directory exists with appropriate permissions
+LOGS_DIR="$MAKE_DIRECTORY/logs"
+sudo mkdir -p "$LOGS_DIR"
+sudo chown $(whoami):$(whoami) "$LOGS_DIR"
+LOG_FILE="$LOGS_DIR/kernel_build.log"
+
 # Navigate to kernel source directory
 cd "$MAKE_DIRECTORY" || exit 1
 
 echo "Building kernel in: $MAKE_DIRECTORY"
 
-# Create logs directory if it does not exist
-LOGS_DIR="$MAKE_DIRECTORY/logs"
-mkdir -p "$LOGS_DIR"
-LOG_FILE="$LOGS_DIR/kernel_build.log"
-
 # Get the number of CPUs and determine job count
 NUM_CPU=$(nproc)
 JOBS=$((NUM_CPU > 1 ? NUM_CPU - 1 : 1))
 
-if ! sudo time make -j$JOBS Image 2>&1 | tee "$LOG_FILE"; then
+if ! sudo bash -c "time make -j$JOBS Image 2>&1 | tee $LOG_FILE"; then
     echo "Make failed. Retrying with single-threaded build..."
-    if ! sudo make Image 2>&1 | tee -a "$LOG_FILE"; then
+    if ! sudo bash -c "make Image 2>&1 | tee -a $LOG_FILE"; then
         echo "Make failed again. Check $LOG_FILE for details." >&2
         echo "Possible causes: missing dependencies, out-of-memory errors, or incorrect kernel configuration."
         exit 1
