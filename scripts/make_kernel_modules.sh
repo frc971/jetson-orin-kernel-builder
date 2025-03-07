@@ -38,7 +38,7 @@ cd "$KERNEL_SRC" || {
 
 # Build modules with sudo
 echo_info "Building modules in $KERNEL_SRC"
-sudo make modules || {
+time sudo make modules || {
     echo_error "Build failed"
     exit 1
 }
