@@ -55,7 +55,39 @@ if [ "$choice" = "y" ] || [ "$choice" = "Y" ]; then
     }
     echo_info "Modules installed successfully"
 else
-    echo_info "Modules built but not installed"
+    # Get current kernel version
+    kernel_version=$(uname -r)
+    
+    # Define README file name
+    readme_file="README_modules_install_${kernel_version}.txt"
+    
+    # Define README content
+    readme_content="
+Kernel Modules Installation Instructions
+========================================
+
+To install the kernel modules later, run the following command in the terminal:
+  sudo make -C $KERNEL_SRC modules_install
+
+This command will:
+- Install the modules to /lib/modules/${kernel_version}/
+- Update the module dependencies.
+
+Important Note:
+---------------
+The modules should be installed before updating the kernel or modifying the source to ensure compatibility with the current kernel.
+"
+    
+    # Display instructions on console
+    echo_info "Modules built but not installed. Here are the installation instructions:"
+    echo "$readme_content"
+    
+    # Save instructions to README file
+    echo "$readme_content" > "$readme_file"
+    
+    # Inform user about the README file
+    echo_info "These instructions have also been saved to $readme_file for future reference."
+
 fi
 
 exit 0
