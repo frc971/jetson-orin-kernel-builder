@@ -1,96 +1,107 @@
 #!/bin/bash
 
-# Kernel source directory
-KERNEL_URI="/usr/src/kernel/kernel-jammy-src"
+# Default kernel source directory, override with KERNEL_URI environment variable if needed
+KERNEL_URI="${KERNEL_URI:-/usr/src/kernel/kernel-jammy-src}"
 
-# Helper Functions
+# Check for correct number of arguments
+if [ $# -ne 1 ]; then
+    echo "Usage: $0 <module_flag>"
+    echo "Example: $0 LOGITECH_FF"
+    echo "         $0 CONFIG_LOGITECH_FF"
+    exit 1
+fi
 
-# Find the Kconfig file defining the config option
+# Standardize the flag by adding CONFIG_ prefix if missing
+flag="$1"
+[[ "$flag" =~ ^CONFIG_ ]] || flag="CONFIG_$flag"
+
+# Function to find the Kconfig file defining the flag
 find_kconfig_file() {
-    local option="${1#CONFIG_}"
-    grep -rl "^config $option$" "$KERNEL_URI" --include=Kconfig | head -n 1
+    local flag_name="${1#CONFIG_}"
+    grep -rl "^config $flag_name$" "$KERNEL_URI" --include=Kconfig | head -n 1
 }
 
-# Extract the config block from Kconfig
-extract_kconfig_block() {
+# Function to extract the config block from Kconfig
+extract_config_block() {
     local kconfig_file="$1"
-    local option="${2#CONFIG_}"
-    sed -n "/^config $option$/,/^config /p" "$kconfig_file" | sed '$d'
+    local flag_name="${2#CONFIG_}"
+    sed -n "/^config $flag_name$/,/^config /p" "$kconfig_file" | sed '$d'
 }
 
-# Get the type (bool, tristate, etc.)
+# Function to get the type from the config block
 get_type() {
     local block="$1"
     echo "$block" | sed -n '2p' | awk '{print $1}'
 }
 
-# Get dependencies and their expression
+# Function to get dependencies from the config block
 get_dependencies() {
     local block="$1"
-    deps=$(echo "$block" | grep "^[[:space:]]*depends on" | sed 's/^[[:space:]]*depends on //' | tr '\n' ' ' | sed 's/ $//')
-    if [ -n "$deps" ]; then
-        echo "Expression: $deps"
-        echo "$deps" | grep -o '[A-Z0-9_]\+' | sort -u
-    fi
+    echo "$block" | grep "^[[:space:]]*depends on" | sed 's/^[[:space:]]*depends on //'
 }
 
-# Check a config option's status in .config
+# Function to get unique config flags from dependencies
+get_unique_deps() {
+    local deps="$1"
+    echo "$deps" | grep -o '\b[A-Z0-9_]\+\b' | sort -u
+}
+
+# Function to get the status of a config flag from .config
 get_config_status() {
     local config_file="$1"
-    local dep="$2"
+    local dep_flag="$2"
     if [ -f "$config_file" ]; then
-        line=$(grep "^$dep=" "$config_file")
-        if [ -n "$line" ]; then
-            echo "$line"
-        elif grep -q "^# $dep is not set" "$config_file"; then
-            echo "# $dep is not set"
+        if grep -q "^$dep_flag=" "$config_file"; then
+            grep "^$dep_flag=" "$config_file"
+        elif grep -q "^# $dep_flag is not set" "$config_file"; then
+            echo "# $dep_flag is not set"
         else
-            echo "$dep not found"
+            echo "$dep_flag not found"
         fi
     else
         echo "status unknown"
     fi
 }
 
-# Main Logic
-
-# Validate input
-[ $# -ne 1 ] && {
-    echo "Usage: $0 <module_flag>"
-    echo "Example: $0 LOGITECH_FF"
-    echo "         $0 CONFIG_LOGITECH_FF"
-    exit 1
-}
-
-flag="$1"
-[[ "$flag" =~ ^CONFIG_ ]] || flag="CONFIG_$flag"
-
-# Search for the flag in Makefiles
+### Step 1: Search Makefiles for the Flag
 echo "Searching for $flag in Makefiles..."
 while IFS= read -r line; do
-    module=$(echo "$line" | grep -oP '(?<=obj-\$\('"${flag}"'\))[+=]+\s+\K[^[:space:]]+\.o' | sed 's/\.o$//')
-    rel_dir=$(dirname "$(echo "$line" | cut -d: -f1)")
-    [ -n "$module" ] && break
+    file=$(echo "$line" | cut -d: -f1)
+    content=$(echo "$line" | cut -d: -f2-)
+    if [[ "$content" =~ ^obj-\$\($flag\)[[:space:]]*\+=[[:space:]]*([^ ]+)\.o ]]; then
+        module="${BASH_REMATCH[1]}"
+        type="Module flag"
+    elif [[ "$content" =~ ^([a-z0-9_-]+)-\$\($flag\)[[:space:]]*\+=[[:space:]]* ]]; then
+        module="${BASH_REMATCH[1]}"
+        type="Feature flag"
+    fi
+    if [ -n "$module" ]; then
+        rel_dir=$(dirname "$file" | sed "s|^$KERNEL_URI/||")
+        echo "$type: $flag"
+        echo "Module name: $module"
+        echo "Module path: $rel_dir/$module.ko"
+        break
+    fi
 done < <(grep -r --include=Makefile "\$($flag)" "$KERNEL_URI" 2>/dev/null)
 
+# If no module found, report an error and exit
 if [ -z "$module" ]; then
     echo "Error: No module found for $flag in $KERNEL_URI"
+    exit 1
+fi
+
+### Step 2: Find and Parse Kconfig File
+kconfig_file=$(find_kconfig_file "$flag")
+if [ -z "$kconfig_file" ]; then
+    echo "Warning: Kconfig file for $flag not found"
 else
-    echo "Module: $module"
-    echo "Path: $rel_dir/$module.ko"
-
-    # Define .config file path
-    config_file="$KERNEL_URI/.config"
-
-    # Find and parse Kconfig
-    kconfig_file=$(find_kconfig_file "$flag")
-    if [ -z "$kconfig_file" ]; then
-        echo "Warning: Kconfig file for $flag not found"
+    # Extract config block
+    block=$(extract_config_block "$kconfig_file" "$flag")
+    if [ -z "$block" ]; then
+        echo "Warning: Config block for $flag not found in $kconfig_file"
     else
-        block=$(extract_kconfig_block "$kconfig_file" "$flag")
+        # Determine possible modes from type
         type=$(get_type "$block")
-        
-        # Report possible modes
         case "$type" in
             bool) modes="y or n" ;;
             tristate) modes="y, m, or n" ;;
@@ -98,28 +109,27 @@ else
         esac
         echo "Possible modes: $modes"
 
-        # Report dependencies
-        mapfile -t dep_info < <(get_dependencies "$block")
-        if [ ${#dep_info[@]} -gt 0 ]; then
-            expression="${dep_info[0]}"
-            expression=$(echo "$expression" | sed 's/Expression: //; s/ / && /g')
-            config_list=("${dep_info[@]:1}")
-            echo "Dependencies: $expression"
-            for dep in "${config_list[@]}"; do
-                status=$(get_config_status "$config_file" "CONFIG_$dep")
-                echo "  CONFIG_$dep: $status"
+        # Extract and display dependencies
+        deps=$(get_dependencies "$block")
+        if [ -n "$deps" ]; then
+            echo "Dependencies:"
+            unique_deps=$(get_unique_deps "$deps")
+            for dep in $unique_deps; do
+                dep_flag="CONFIG_$dep"
+                status=$(get_config_status "$KERNEL_URI/.config" "$dep_flag")
+                echo "  $dep_flag: $status"
             done
         else
             echo "No dependencies"
         fi
     fi
+fi
 
-    # Check flag status in .config
-    echo "In .config:"
-    if [ -f "$config_file" ]; then
-        line=$(grep "$flag" "$config_file" | head -n 1)
-        [ -n "$line" ] && echo "$line" || echo "$flag cannot be found"
-    else
-        echo "Warning: .config file not found in $KERNEL_URI; cannot determine if $flag is enabled"
-    fi
+### Step 3: Check Flag Status in .config
+echo "In .config:"
+if [ -f "$KERNEL_URI/.config" ]; then
+    line=$(grep "$flag" "$KERNEL_URI/.config" | head -n 1)
+    [ -n "$line" ] && echo "$line" || echo "$flag cannot be found"
+else
+    echo "Warning: .config file not found in $KERNEL_URI; cannot determine if $flag or its dependencies are enabled"
 fi
