@@ -52,8 +52,21 @@ while IFS= read -r line; do
     fi
 done < <(grep -r --include=Makefile "\$($config_flag)" "$KERNEL_URI" 2>/dev/null)
 
-# If no match is found, report an error
-if [ "$found" = false ]; then
+# If a match was found, check the .config file for the flag's status
+if [ "$found" = true ]; then
+    config_file="$KERNEL_URI/.config"
+    if [ ! -f "$config_file" ]; then
+        echo "Error: .config file not found in $KERNEL_URI"
+        exit 1
+    fi
+    echo "In .config:"
+    # Search for any line containing the flag and print it as is
+    if grep -q "$config_flag" "$config_file"; then
+        grep "$config_flag" "$config_file" | head -n 1
+    else
+        echo "$config_flag cannot be found"
+    fi
+else
     echo "Error: No module found for $config_flag in $KERNEL_URI"
     exit 1
 fi
