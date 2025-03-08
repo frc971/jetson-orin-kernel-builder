@@ -2,17 +2,21 @@
 
 # Script to find information about kernel module flags, their dependencies, and configuration types.
 # Helps inexperienced users understand module/feature flags, their status, types, and dependencies.
+# Supports searching for related strings with -s flag.
 
 # Default kernel source path, can be overridden by environment variable
 KERNEL_URI="${KERNEL_URI:-/usr/src/kernel/kernel-jammy-src}"
 
 # Display usage information
 usage() {
-    echo "Usage: $0 [-h] <module_flag>"
-    echo "Example: $0 LOGITECH_FF"
-    echo "         $0 CONFIG_LOGITECH_FF"
+    echo "Usage: $0 [-h] [-s <search_string>] <module_flag>"
+    echo "Examples:"
+    echo "  $0 LOGITECH_FF              # Exact config lookup"
+    echo "  $0 CONFIG_LOGITECH_FF       # Exact config lookup with prefix"
+    echo "  $0 -s winchiphead           # Search for related configs"
     echo "Options:"
     echo "  -h    Display this help message"
+    echo "  -s    Search for a string in Makefiles, Kconfig, and .config (case-insensitive)"
 }
 
 # Function to analyze type, possible values, description, dependencies, and selects from Kconfig
@@ -108,7 +112,6 @@ analyze_kconfig() {
                     echo "      Status: Unknown (not found in .config)"
                 fi
             else
-                # Complex expression, show the full line as is
                 echo "    $dep_line"
             fi
         done
@@ -133,25 +136,140 @@ analyze_kconfig() {
                     echo "      Status: Unknown (not found in .config)"
                 fi
             else
-                # Complex select (e.g., with if clause), show the full line as is
                 echo "    $select_line"
             fi
         done
     fi
 }
 
-# Check for help flag or incorrect number of arguments
-if [ "$#" -eq 1 ] && [ "$1" = "-h" ]; then
-    usage
+# Function to search for a string in Makefiles, Kconfig, and .config
+search_configs() {
+    local search_string="$1"
+
+    echo "Searching for '$search_string' (case-insensitive) in $KERNEL_URI..."
+    echo
+
+    # Search Makefiles
+    echo "Matches in Makefiles:"
+    local makefile_results=$(find "$KERNEL_URI" -name Makefile -exec grep -iH "$search_string" {} + 2>/dev/null)
+    if [ -n "$makefile_results" ]; then
+        while IFS= read -r line; do
+            local file=$(echo "$line" | cut -d: -f1)
+            local content=$(echo "$line" | cut -d: -f2-)
+            # Extract CONFIG_ symbols if present
+            if [[ "$content" =~ (CONFIG_[A-Za-z0-9_]+) ]]; then
+                echo "  File: $file"
+                echo "  Line: $content"
+                echo "  Config: ${BASH_REMATCH[1]}"
+                echo
+            fi
+        done <<< "$makefile_results"
+    else
+        echo "  No matches found"
+    fi
+    echo
+
+    # Search Kconfig files
+    echo "Matches in Kconfig files:"
+    local kconfig_results=$(find "$KERNEL_URI" -name Kconfig -exec grep -iH "$search_string" {} + 2>/dev/null)
+    if [ -n "$kconfig_results" ]; then
+        while IFS= read -r line; do
+            local file=$(echo "$line" | cut -d: -f1)
+            local content=$(echo "$line" | cut -d: -f2-)
+            # Extract CONFIG_ symbols or config names
+            if [[ "$content" =~ (CONFIG_[A-Za-z0-9_]+) ]] || [[ "$content" =~ ^[[:space:]]*config[[:space:]]+([A-Za-z0-9_]+) ]]; then
+                local config_name="${BASH_REMATCH[1]:-CONFIG_${BASH_REMATCH[1]}}"
+                echo "  File: $file"
+                echo "  Line: $content"
+                echo "  Config: $config_name"
+                echo
+            fi
+        done <<< "$kconfig_results"
+    else
+        echo "  No matches found"
+    fi
+    echo
+
+    # Search .config
+    echo "Matches in .config:"
+    local config_file="$KERNEL_URI/.config"
+    if [ -f "$config_file" ]; then
+        local config_results=$(grep -i "$search_string" "$config_file" 2>/dev/null)
+        if [ -n "$config_results" ]; then
+            while IFS= read -r line; do
+                if [[ "$line" =~ (CONFIG_[A-Za-z0-9_]+)= ]]; then
+                    echo "  Line: $line"
+                    echo "  Config: ${BASH_REMATCH[1]}"
+                    echo
+                fi
+            done <<< "$config_results"
+        else
+            echo "  No matches found"
+        fi
+    else
+        echo "  .config file not found in $KERNEL_URI"
+    fi
+}
+
+# Parse command-line arguments
+search_mode=false
+search_string=""
+config_flag=""
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -h)
+            usage
+            exit 0
+            ;;
+        -s)
+            if [ $# -lt 2 ]; then
+                echo "Error: -s requires a search string"
+                usage
+                exit 1
+            fi
+            search_mode=true
+            search_string="$2"
+            shift 2
+            ;;
+        *)
+            if [ -n "$config_flag" ]; then
+                echo "Error: Only one config flag allowed without -s"
+                usage
+                exit 1
+            fi
+            config_flag="$1"
+            shift
+            ;;
+    esac
+done
+
+# Ensure kernel directory exists
+if [ ! -d "$KERNEL_URI" ]; then
+    echo "Error: Kernel source directory $KERNEL_URI not found"
+    exit 1
+fi
+
+if [ "$search_mode" = true ]; then
+    # Search mode
+    if [ -z "$search_string" ]; then
+        echo "Error: Search string cannot be empty"
+        usage
+        exit 1
+    fi
+    search_configs "$search_string"
     exit 0
-elif [ "$#" -ne 1 ]; then
-    echo "Error: Exactly one argument required"
+fi
+
+# Exact match mode
+if [ -z "$config_flag" ]; then
+    echo "Error: No module flag provided"
     usage
     exit 1
 fi
 
 # Sanitize and standardize input (strict alphanumeric + underscore check)
-input_flag="${1//[^[:alnum:]_]/}"
+input_flag="${config_flag//[^[:alnum:]_]/}"
 if [[ -z "$input_flag" ]]; then
     echo "Error: Invalid input. Only alphanumeric characters and underscores are allowed."
     exit 1
@@ -164,12 +282,6 @@ else
     config_flag="$input_flag"
 fi
 
-# Ensure kernel directory exists
-if [ ! -d "$KERNEL_URI" ]; then
-    echo "Error: Kernel source directory $KERNEL_URI not found"
-    exit 1
-fi
-
 found=false
 
 # Search Makefiles efficiently using find and grep
@@ -180,7 +292,6 @@ while IFS= read -r line; do
 
     # Case 1: Module flag pattern
     # Matches: obj-$(CONFIG_HID_LOGITECH) += hid-logitech.o
-    # Indicates a standalone kernel module controlled by the flag
     if [[ "$content" =~ ^obj-\$\("$config_flag"\)[[:space:]]*\+=[[:space:]]*([^[:space:]]+)\.o ]]; then
         module_name="${BASH_REMATCH[1]}"
         directory="$(dirname "$file")"
@@ -193,7 +304,6 @@ while IFS= read -r line; do
 
     # Case 2: Feature flag pattern
     # Matches: hid-logitech-$(CONFIG_LOGITECH_FF) += hid-lgff.o
-    # Indicates a feature within a larger module controlled by the flag
     elif [[ "$content" =~ ^([a-z0-9_-]+)-\$\("$config_flag"\)[[:space:]]*\+=[[:space:]]* ]]; then
         module_name="${BASH_REMATCH[1]}"
         directory="$(dirname "$file")"
