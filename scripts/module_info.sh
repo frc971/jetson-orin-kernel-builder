@@ -15,7 +15,7 @@ usage() {
     echo "  -h    Display this help message"
 }
 
-# Function to analyze type, possible values, description, and dependencies from Kconfig
+# Function to analyze type, possible values, description, dependencies, and selects from Kconfig
 analyze_kconfig() {
     local config_flag="$1"
     local directory="$2"
@@ -34,6 +34,7 @@ analyze_kconfig() {
     local description=""
     local default_value=""
     local -a dep_lines=()  # Array to store full depends on lines
+    local -a select_lines=()  # Array to store full select lines
     local config_name="${config_flag#CONFIG_}"
     while IFS= read -r line; do
         if [[ "$line" =~ ^[[:space:]]*config[[:space:]]+$config_name([[:space:]]|$) ]]; then
@@ -49,7 +50,9 @@ analyze_kconfig() {
             elif [[ "$line" =~ ^[[:space:]]*default[[:space:]]+([^[:space:]]+) ]]; then
                 default_value="${BASH_REMATCH[1]}"
             elif [[ "$line" =~ ^[[:space:]]*depends[[:space:]]+on[[:space:]]+(.+) ]]; then
-                dep_lines+=("$line")  # Store the full line including "depends on"
+                dep_lines+=("$line")
+            elif [[ "$line" =~ ^[[:space:]]*select[[:space:]]+(.+) ]]; then
+                select_lines+=("$line")
             fi
         fi
     done < "$kconfig_file"
@@ -92,7 +95,6 @@ analyze_kconfig() {
     else
         echo "  Dependencies:"
         for dep_line in "${dep_lines[@]}"; do
-            # Extract the expression after "depends on" to check if it's simple or complex
             if [[ "$dep_line" =~ ^[[:space:]]*depends[[:space:]]+on[[:space:]]+([A-Za-z0-9_]+)$ ]]; then
                 local dep_flag="CONFIG_${BASH_REMATCH[1]}"
                 echo "    $dep_flag"
@@ -108,6 +110,31 @@ analyze_kconfig() {
             else
                 # Complex expression, show the full line as is
                 echo "    $dep_line"
+            fi
+        done
+    fi
+
+    # Analyze selects
+    if [ ${#select_lines[@]} -eq 0 ]; then
+        echo "  Selects: None explicitly defined"
+    else
+        echo "  Selects:"
+        for select_line in "${select_lines[@]}"; do
+            if [[ "$select_line" =~ ^[[:space:]]*select[[:space:]]+([A-Za-z0-9_]+)$ ]]; then
+                local select_flag="CONFIG_${BASH_REMATCH[1]}"
+                echo "    $select_flag"
+                if grep -q "^$select_flag=y" "$KERNEL_URI/.config"; then
+                    echo "      Status: Built-in (y)"
+                elif grep -q "^$select_flag=m" "$KERNEL_URI/.config"; then
+                    echo "      Status: External module (m)"
+                elif grep -q "^#$select_flag is not set" "$KERNEL_URI/.config"; then
+                    echo "      Status: Not set (n)"
+                else
+                    echo "      Status: Unknown (not found in .config)"
+                fi
+            else
+                # Complex select (e.g., with if clause), show the full line as is
+                echo "    $select_line"
             fi
         done
     fi
@@ -196,7 +223,7 @@ if [ "$found" = true ]; then
         echo "Module type: Feature flag within $module_name"
     fi
 
-    # Analyze type, possible values, description, and dependencies
+    # Analyze type, possible values, description, dependencies, and selects
     analyze_kconfig "$config_flag" "$directory"
 elif [ -z "$input_flag" ]; then
     echo "Error: Empty input provided"  # Redundant due to earlier check, kept for clarity
