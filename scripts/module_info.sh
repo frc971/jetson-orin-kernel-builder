@@ -15,7 +15,7 @@ usage() {
     echo "  -h    Display this help message"
 }
 
-# Function to analyze type, possible values, and dependencies from Kconfig
+# Function to analyze type, possible values, description, and dependencies from Kconfig
 analyze_kconfig() {
     local config_flag="$1"
     local directory="$2"
@@ -31,6 +31,7 @@ analyze_kconfig() {
     # Extract the config block for the given flag
     local in_block=false
     local config_type=""
+    local description=""
     local default_value=""
     local dep_line=""
     local config_name="${config_flag#CONFIG_}"
@@ -40,7 +41,10 @@ analyze_kconfig() {
         elif [[ "$in_block" = true && "$line" =~ ^[[:space:]]*config[[:space:]]+ ]]; then
             break
         elif [[ "$in_block" = true ]]; then
-            if [[ "$line" =~ ^[[:space:]]*(bool|tristate|string|int|hex)[[:space:]]*(.*)$ ]]; then
+            if [[ "$line" =~ ^[[:space:]]*(bool|tristate|string|int|hex)[[:space:]]*\"([^\"]*)\" ]]; then
+                config_type="${BASH_REMATCH[1]}"
+                description="${BASH_REMATCH[2]}"
+            elif [[ "$line" =~ ^[[:space:]]*(bool|tristate|string|int|hex)[[:space:]]*$ ]]; then
                 config_type="${BASH_REMATCH[1]}"
             elif [[ "$line" =~ ^[[:space:]]*default[[:space:]]+([^[:space:]]+) ]]; then
                 default_value="${BASH_REMATCH[1]}"
@@ -54,7 +58,7 @@ analyze_kconfig() {
     if [[ -z "$config_type" ]]; then
         echo "  Type: Unknown (not explicitly defined in Kconfig)"
     else
-        echo "  Type: $config_type"
+        echo "  Type: $config_type${description:+ \"$description\"}"
         case "$config_type" in
             "bool")
                 echo "  Possible values: y (enabled), n (disabled)"
@@ -192,7 +196,7 @@ if [ "$found" = true ]; then
         echo "Module type: Feature flag within $module_name"
     fi
 
-    # Analyze type, possible values, and dependencies
+    # Analyze type, possible values, description, and dependencies
     analyze_kconfig "$config_flag" "$directory"
 elif [ -z "$input_flag" ]; then
     echo "Error: Empty input provided"  # Redundant due to earlier check, kept for clarity
