@@ -40,13 +40,20 @@ search_kconfig() {
             # Read the file into an array to parse config blocks
             mapfile -t lines < "$file"
             local config_name=""
+            local last_config_line=-1
             for ((i = 0; i < ${#lines[@]}; i++)); do
                 # Show every line with context
                 echo "    Line $((i+1)): ${lines[$i]}"
                 # Identify config lines
                 if [[ "${lines[$i]}" =~ ^[[:space:]]*config[[:space:]]+([A-Za-z0-9_]+) ]]; then
+                    # If we already had a config_name and this is a new config, reset it first
+                    if [ -n "$config_name" ] && [ "$last_config_line" -ne "$i" ]; then
+                        echo "    -> Reset config_name (new config block started)"
+                        config_name=""
+                    fi
                     config_name="${BASH_REMATCH[1]}"
                     echo "    -> Set config_name to: CONFIG_$config_name"
+                    last_config_line="$i"
                 fi
                 # Case-insensitive match for 'winchiphead'
                 if echo "${lines[$i]}" | grep -i "winchiphead" >/dev/null 2>&1; then
@@ -58,13 +65,6 @@ search_kconfig() {
                         found=true
                     else
                         echo "    -> No config_name set yet for this match"
-                    fi
-                fi
-                # Reset config_name at the start of a new block (only if not the first line)
-                if [[ "${lines[$i]}" =~ ^[[:space:]]*config[[:space:]]+ ]] && [ "$i" -gt 0 ]; then
-                    if [ -n "$config_name" ]; then
-                        echo "    -> Reset config_name (new config block started)"
-                        config_name=""
                     fi
                 fi
             done
