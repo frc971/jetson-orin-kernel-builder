@@ -92,24 +92,23 @@ analyze_kconfig() {
     else
         echo "  Dependencies:"
         for dep_line in "${dep_lines[@]}"; do
-            echo "    $dep_line"
-            # Extract and evaluate simple config symbols from the dependency line
-            IFS=' ' read -r -a deps <<< "$(echo "$dep_line" | sed 's/[=<>!&|][=<>!&|]*/ /g; s/[()]/ /g')"
-            for dep in "${deps[@]}"; do
-                if [[ "$dep" =~ ^[A-Za-z0-9_]+$ ]]; then
-                    local dep_flag="CONFIG_$dep"
-                    echo "      - $dep_flag"
-                    if grep -q "^$dep_flag=y" "$KERNEL_URI/.config"; then
-                        echo "        Status: Built-in (y)"
-                    elif grep -q "^$dep_flag=m" "$KERNEL_URI/.config"; then
-                        echo "        Status: External module (m)"
-                    elif grep -q "^#$dep_flag is not set" "$KERNEL_URI/.config"; then
-                        echo "        Status: Not set (n)"
-                    else
-                        echo "        Status: Unknown (not found in .config)"
-                    fi
+            # Check if the dependency is a simple config symbol or a complex expression
+            if [[ "$dep_line" =~ ^[A-Za-z0-9_]+$ ]]; then
+                local dep_flag="CONFIG_$dep_line"
+                echo "    $dep_flag"
+                if grep -q "^$dep_flag=y" "$KERNEL_URI/.config"; then
+                    echo "      Status: Built-in (y)"
+                elif grep -q "^$dep_flag=m" "$KERNEL_URI/.config"; then
+                    echo "      Status: External module (m)"
+                elif grep -q "^#$dep_flag is not set" "$KERNEL_URI/.config"; then
+                    echo "      Status: Not set (n)"
+                else
+                    echo "      Status: Unknown (not found in .config)"
                 fi
-            done
+            else
+                # Complex expression, show as is without breaking down
+                echo "    $dep_line"
+            fi
         done
     fi
 }
