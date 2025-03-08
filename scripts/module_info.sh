@@ -33,7 +33,7 @@ analyze_kconfig() {
     local config_type=""
     local description=""
     local default_value=""
-    local -a dep_lines=()  # Array to store all depends on lines
+    local -a dep_lines=()  # Array to store full depends on lines
     local config_name="${config_flag#CONFIG_}"
     while IFS= read -r line; do
         if [[ "$line" =~ ^[[:space:]]*config[[:space:]]+$config_name([[:space:]]|$) ]]; then
@@ -49,7 +49,7 @@ analyze_kconfig() {
             elif [[ "$line" =~ ^[[:space:]]*default[[:space:]]+([^[:space:]]+) ]]; then
                 default_value="${BASH_REMATCH[1]}"
             elif [[ "$line" =~ ^[[:space:]]*depends[[:space:]]+on[[:space:]]+(.+) ]]; then
-                dep_lines+=("${BASH_REMATCH[1]}")
+                dep_lines+=("$line")  # Store the full line including "depends on"
             fi
         fi
     done < "$kconfig_file"
@@ -92,9 +92,9 @@ analyze_kconfig() {
     else
         echo "  Dependencies:"
         for dep_line in "${dep_lines[@]}"; do
-            # Check if the dependency is a simple config symbol or a complex expression
-            if [[ "$dep_line" =~ ^[A-Za-z0-9_]+$ ]]; then
-                local dep_flag="CONFIG_$dep_line"
+            # Extract the expression after "depends on" to check if it's simple or complex
+            if [[ "$dep_line" =~ ^[[:space:]]*depends[[:space:]]+on[[:space:]]+([A-Za-z0-9_]+)$ ]]; then
+                local dep_flag="CONFIG_${BASH_REMATCH[1]}"
                 echo "    $dep_flag"
                 if grep -q "^$dep_flag=y" "$KERNEL_URI/.config"; then
                     echo "      Status: Built-in (y)"
@@ -106,7 +106,7 @@ analyze_kconfig() {
                     echo "      Status: Unknown (not found in .config)"
                 fi
             else
-                # Complex expression, show as is without breaking down
+                # Complex expression, show the full line as is
                 echo "    $dep_line"
             fi
         done
