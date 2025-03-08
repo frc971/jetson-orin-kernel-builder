@@ -33,7 +33,7 @@ analyze_kconfig() {
     local config_type=""
     local description=""
     local default_value=""
-    local dep_line=""
+    local -a dep_lines=()  # Array to store all depends on lines
     local config_name="${config_flag#CONFIG_}"
     while IFS= read -r line; do
         if [[ "$line" =~ ^[[:space:]]*config[[:space:]]+$config_name([[:space:]]|$) ]]; then
@@ -49,7 +49,7 @@ analyze_kconfig() {
             elif [[ "$line" =~ ^[[:space:]]*default[[:space:]]+([^[:space:]]+) ]]; then
                 default_value="${BASH_REMATCH[1]}"
             elif [[ "$line" =~ ^[[:space:]]*depends[[:space:]]+on[[:space:]]+(.+) ]]; then
-                dep_line="${BASH_REMATCH[1]}"
+                dep_lines+=("${BASH_REMATCH[1]}")
             fi
         fi
     done < "$kconfig_file"
@@ -87,28 +87,30 @@ analyze_kconfig() {
     fi
 
     # Analyze dependencies
-    if [[ -z "$dep_line" ]]; then
+    if [ ${#dep_lines[@]} -eq 0 ]; then
         echo "  Dependencies: None explicitly defined"
     else
         echo "  Dependencies:"
-        # Split dependencies (e.g., "DEP1 && DEP2" or "DEP1 || DEP2")
-        IFS=' ' read -r -a deps <<< "$(echo "$dep_line" | sed 's/&&/ /g; s/||/ /g')"
-        for dep in "${deps[@]}"; do
-            dep=$(echo "$dep" | tr -d '()!')  # Remove parentheses and negation for simplicity
-            if [[ "$dep" =~ ^[A-Za-z0-9_]+$ ]]; then
-                local dep_flag="CONFIG_$dep"
-                echo "    $dep_flag"
-                # Check status in .config
-                if grep -q "^$dep_flag=y" "$KERNEL_URI/.config"; then
-                    echo "      Status: Built-in (y)"
-                elif grep -q "^$dep_flag=m" "$KERNEL_URI/.config"; then
-                    echo "      Status: External module (m)"
-                elif grep -q "^#$dep_flag is not set" "$KERNEL_URI/.config"; then
-                    echo "      Status: Not set (n)"
-                else
-                    echo "      Status: Unknown (not found in .config)"
+        for dep_line in "${dep_lines[@]}"; do
+            # Split dependencies (e.g., "DEP1 && DEP2" or "DEP1 || DEP2")
+            IFS=' ' read -r -a deps <<< "$(echo "$dep_line" | sed 's/&&/ /g; s/||/ /g')"
+            for dep in "${deps[@]}"; do
+                dep=$(echo "$dep" | tr -d '()!')  # Remove parentheses and negation for simplicity
+                if [[ "$dep" =~ ^[A-Za-z0-9_]+$ ]]; then
+                    local dep_flag="CONFIG_$dep"
+                    echo "    $dep_flag"
+                    # Check status in .config
+                    if grep -q "^$dep_flag=y" "$KERNEL_URI/.config"; then
+                        echo "      Status: Built-in (y)"
+                    elif grep -q "^$dep_flag=m" "$KERNEL_URI/.config"; then
+                        echo "      Status: External module (m)"
+                    elif grep -q "^#$dep_flag is not set" "$KERNEL_URI/.config"; then
+                        echo "      Status: Not set (n)"
+                    else
+                        echo "      Status: Unknown (not found in .config)"
+                    fi
                 fi
-            fi
+            done
         done
     fi
 }
