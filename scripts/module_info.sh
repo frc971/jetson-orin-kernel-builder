@@ -151,42 +151,32 @@ search_configs() {
 
     # Search Makefiles
     echo "Matches in Makefiles:"
-    local makefile_results=$(find "$KERNEL_URI" -name Makefile -exec grep -iH "$search_string" {} + 2>/dev/null)
-    if [ -n "$makefile_results" ]; then
-        while IFS= read -r line; do
-            local file=$(echo "$line" | cut -d: -f1)
-            local content=$(echo "$line" | cut -d: -f2-)
-            # Extract CONFIG_ symbols if present
-            if [[ "$content" =~ (CONFIG_[A-Za-z0-9_]+) ]]; then
-                echo "  File: $file"
-                echo "  Line: $content"
-                echo "  Config: ${BASH_REMATCH[1]}"
-                echo
-            fi
-        done <<< "$makefile_results"
-    else
-        echo "  No matches found"
+    if ! find "$KERNEL_URI" -name Makefile -exec grep -iH "$search_string" {} + 2>/dev/null | while IFS=: read -r file content; do
+        # Extract CONFIG_ symbols if present
+        if [[ "$content" =~ (CONFIG_[A-Za-z0-9_]+) ]]; then
+            echo "  File: $file"
+            echo "  Line: $content"
+            echo "  Config: ${BASH_REMATCH[1]}"
+            echo
+        fi
+    done; then
+        echo "  No matches found or error occurred"
     fi
     echo
 
     # Search Kconfig files
     echo "Matches in Kconfig files:"
-    local kconfig_results=$(find "$KERNEL_URI" -name Kconfig -exec grep -iH "$search_string" {} + 2>/dev/null)
-    if [ -n "$kconfig_results" ]; then
-        while IFS= read -r line; do
-            local file=$(echo "$line" | cut -d: -f1)
-            local content=$(echo "$line" | cut -d: -f2-)
-            # Extract CONFIG_ symbols or config names
-            if [[ "$content" =~ (CONFIG_[A-Za-z0-9_]+) ]] || [[ "$content" =~ ^[[:space:]]*config[[:space:]]+([A-Za-z0-9_]+) ]]; then
-                local config_name="${BASH_REMATCH[1]:-CONFIG_${BASH_REMATCH[1]}}"
-                echo "  File: $file"
-                echo "  Line: $content"
-                echo "  Config: $config_name"
-                echo
-            fi
-        done <<< "$kconfig_results"
-    else
-        echo "  No matches found"
+    if ! find "$KERNEL_URI" -name Kconfig -exec grep -iH "$search_string" {} + 2>/dev/null | while IFS=: read -r file content; do
+        # Extract CONFIG_ symbols or config names
+        if [[ "$content" =~ (CONFIG_[A-Za-z0-9_]+) ]] || [[ "$content" =~ ^[[:space:]]*config[[:space:]]+([A-Za-z0-9_]+) ]]; then
+            local config_name="${BASH_REMATCH[1]:-CONFIG_${BASH_REMATCH[1]}}"
+            echo "  File: $file"
+            echo "  Line: $content"
+            echo "  Config: $config_name"
+            echo
+        fi
+    done; then
+        echo "  No matches found or error occurred"
     fi
     echo
 
@@ -194,16 +184,13 @@ search_configs() {
     echo "Matches in .config:"
     local config_file="$KERNEL_URI/.config"
     if [ -f "$config_file" ]; then
-        local config_results=$(grep -i "$search_string" "$config_file" 2>/dev/null)
-        if [ -n "$config_results" ]; then
-            while IFS= read -r line; do
-                if [[ "$line" =~ (CONFIG_[A-Za-z0-9_]+)= ]]; then
-                    echo "  Line: $line"
-                    echo "  Config: ${BASH_REMATCH[1]}"
-                    echo
-                fi
-            done <<< "$config_results"
-        else
+        if ! grep -i "$search_string" "$config_file" 2>/dev/null | while IFS= read -r line; do
+            if [[ "$line" =~ (CONFIG_[A-Za-z0-9_]+)= ]]; then
+                echo "  Line: $line"
+                echo "  Config: ${BASH_REMATCH[1]}"
+                echo
+            fi
+        done; then
             echo "  No matches found"
         fi
     else
