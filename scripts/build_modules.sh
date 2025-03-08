@@ -89,8 +89,8 @@ build_module() {
             sudo bash scripts/config --file .config --set-val "$config_option" "m"
         fi
 
-        # Build the module
-        sudo make "$module_path" || {
+        # Build the module (corrected line)
+        sudo make M="$module_path" modules || {
             echo "Error: Failed to build in $module_path."
             exit 1
         }
