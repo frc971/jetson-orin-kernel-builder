@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# CLI to search for 'winchiphead' in Kconfig files and identify the corresponding config block
+# CLI to search for 'winchiphead' in Kconfig files by gathering and parsing relevant files
 # For debugging purposes
 
 # Default kernel source path, can be overridden by environment variable
@@ -17,37 +17,51 @@ search_kconfig() {
         exit 1
     fi
 
-    # Search Kconfig files
+    # Gather all Kconfig files
+    echo "Gathering Kconfig files..."
+    local kconfig_files
+    mapfile -t kconfig_files < <(find "$KERNEL_URI" -name Kconfig -type f 2>/dev/null)
+    if [ ${#kconfig_files[@]} -eq 0 ]; then
+        echo "  No Kconfig files found in $KERNEL_URI (check permissions or path)"
+        exit 1
+    else
+        echo "  Found ${#kconfig_files[@]} Kconfig files"
+    fi
+    echo
+
+    # Search and parse Kconfig files
     echo "Matches in Kconfig files:"
     local found=false
-    find "$KERNEL_URI" -name Kconfig -type f 2>/dev/null | while IFS= read -r file; do
-        # Read the entire file into an array to parse blocks
-        mapfile -t lines < "$file"
-        local config_name=""
-        for ((i = 0; i < ${#lines[@]}; i++)); do
-            # Look for config lines to set the current block
-            if [[ "${lines[$i]}" =~ ^[[:space:]]*config[[:space:]]+([A-Za-z0-9_]+) ]]; then
-                config_name="${BASH_REMATCH[1]}"
-            fi
-            # Check for 'winchiphead' in the current line
-            if [[ "${lines[$i]}" =~ [Ww][Ii][Nn][Cc][Hh][Ii][Pp][Hh][Ee][Aa][Dd] ]]; then
-                # If we have a config name from earlier in the block, use it
-                if [ -n "$config_name" ]; then
-                    echo "  File: $file"
-                    echo "  Line: ${lines[$i]}"
-                    echo "  Config: CONFIG_$config_name"
-                    echo
-                    found=true
+    for file in "${kconfig_files[@]}"; do
+        # Check if 'winchiphead' exists in this file
+        if grep -i "winchiphead" "$file" >/dev/null 2>&1; then
+            echo "  File: $file"
+            # Read the file into an array to parse config blocks
+            mapfile -t lines < "$file"
+            local config_name=""
+            for ((i = 0; i < ${#lines[@]}; i++)); do
+                # Identify config lines
+                if [[ "${lines[$i]}" =~ ^[[:space:]]*config[[:space:]]+([A-Za-z0-9_]+) ]]; then
+                    config_name="${BASH_REMATCH[1]}"
                 fi
-            fi
-            # Reset config_name if we hit a new block (e.g., another config or end of block)
-            if [[ "${lines[$i]}" =~ ^[[:space:]]*config[[:space:]]+ ]] && [ "$i" -gt 0 ]; then
-                config_name=""
-            fi
-        done
+                # Case-insensitive match for 'winchiphead'
+                if echo "${lines[$i]}" | grep -i "winchiphead" >/dev/null 2>&1; then
+                    if [ -n "$config_name" ]; then
+                        echo "    Line: ${lines[$i]}"
+                        echo "    Config: CONFIG_$config_name"
+                        echo
+                        found=true
+                    fi
+                fi
+                # Reset config_name at the start of a new block
+                if [[ "${lines[$i]}" =~ ^[[:space:]]*config[[:space:]]+ ]] && [ "$i" -gt 0 ]; then
+                    config_name=""
+                fi
+            done
+        fi
     done
     if [ "$found" = false ]; then
-        echo "  No matches found or error occurred (check permissions, path, or kernel version)"
+        echo "  No matches found for 'winchiphead' (check kernel version or content)"
     fi
 }
 
