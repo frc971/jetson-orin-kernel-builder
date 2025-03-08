@@ -164,19 +164,45 @@ search_configs() {
     fi
     echo
 
-    # Search Kconfig files
+    # Search Kconfig files with improved parsing
     echo "Matches in Kconfig files:"
-    if ! find "$KERNEL_URI" -name Kconfig -exec grep -iH "$search_string" {} + 2>/dev/null | while IFS=: read -r file content; do
-        # Extract CONFIG_ symbols or config names
-        if [[ "$content" =~ (CONFIG_[A-Za-z0-9_]+) ]] || [[ "$content" =~ ^[[:space:]]*config[[:space:]]+([A-Za-z0-9_]+) ]]; then
-            local config_name="${BASH_REMATCH[1]:-CONFIG_${BASH_REMATCH[1]}}"
-            echo "  File: $file"
-            echo "  Line: $content"
-            echo "  Config: $config_name"
-            echo
+    local kconfig_files
+    mapfile -t kconfig_files < <(find "$KERNEL_URI" -name Kconfig -type f 2>/dev/null)
+    if [ ${#kconfig_files[@]} -eq 0 ]; then
+        echo "  No Kconfig files found in $KERNEL_URI"
+    else
+        local found=false
+        for file in "${kconfig_files[@]}"; do
+            # Skip files that don’t contain the search string
+            if ! grep -iq "$search_string" "$file"; then
+                continue
+            fi
+            local config_name=""
+            while IFS= read -r line; do
+                # Start of a new config block
+                if [[ "$line" =~ ^[[:space:]]*config[[:space:]]+([A-Za-z0-9_]+) ]]; then
+                    config_name="${BASH_REMATCH[1]}"
+                # Check if the line contains the search string
+                elif echo "$line" | grep -iq "$search_string"; then
+                    if [ -n "$config_name" ]; then
+                        echo "  File: $file"
+                        echo "  Line: $line"
+                        echo "  Config: CONFIG_$config_name"
+                        echo
+                        found=true
+                    else
+                        echo "  File: $file"
+                        echo "  Line: $line"
+                        echo "  Warning: No config block active"
+                        echo
+                        found=true
+                    fi
+                fi
+            done < "$file"
+        done
+        if [ "$found" = false ]; then
+            echo "  No matches found for '$search_string' in Kconfig files"
         fi
-    done; then
-        echo "  No matches found or error occurred"
     fi
     echo
 
