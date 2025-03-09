@@ -10,7 +10,7 @@ This script facilitates the use of `make xconfig`, which provides a graphical in
 - The Qt5 development libraries (`Qt5Core`, `Qt5Gui`, `Qt5Widgets`), which are required to run `make xconfig`.
 
 ## Usage
-To invoke the script, run 
+To invoke the script from the repository root directory, run 
 
 ```bash
 ./scripts/edit_config_gui.sh
