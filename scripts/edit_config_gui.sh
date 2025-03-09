@@ -1,4 +1,10 @@
 #!/bin/bash
+# This script enables the use of 'make xconfig', which provides a graphical interface to configure Linux kernel options.
+# It checks for required Qt5 libraries and, if missing, offers to install either qtbase5-dev or qtbase5-gles-dev.
+# It then navigates to the specified kernel source directory (default: /usr/src/kernel/kernel-jammy-src)
+# and launches 'make xconfig' with appropriate permissions.
+# Copyright (c) 2016-25 JetsonHacks 
+# MIT License
 
 # Function to check for Qt5 libraries
 check_qt_libraries() {
