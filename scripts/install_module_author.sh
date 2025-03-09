@@ -45,7 +45,7 @@ if [ "\$module_kernel" != "\$running_kernel" ]; then
     exit 1
 fi
 
-# Inform the user in detail
+# Inform the user in detail about the actions to be performed
 echo "This script will perform the following actions:"
 echo "1. Copy \$module_file to \$install_dir using 'sudo cp'"
 echo "2. Update module dependencies with 'sudo depmod -a'"
@@ -59,21 +59,24 @@ if [ "\$confirm" != "y" ]; then
     exit 1
 fi
 
-# Copy the .ko file to the installation directory
+# Step 1: Copy the .ko file to the installation directory
+echo "Step 1: Copying \$module_file to \$install_dir using 'sudo cp'"
 sudo cp "\$module_file" "\$install_dir"
 if [ \$? -ne 0 ]; then
     echo "Error: Failed to copy \$module_file to \$install_dir."
     exit 1
 fi
 
-# Update module dependencies
+# Step 2: Update module dependencies
+echo "Step 2: Updating module dependencies with 'sudo depmod -a'"
 sudo depmod -a
 if [ \$? -ne 0 ]; then
     echo "Error: Failed to run depmod."
     exit 1
 fi
 
-# Load the module
+# Step 3: Load the module
+echo "Step 3: Loading the module '${module_name}' with 'sudo modprobe ${module_name}'"
 sudo modprobe "${module_name}"
 if [ \$? -ne 0 ]; then
     echo "Error: Failed to load module ${module_name}."
