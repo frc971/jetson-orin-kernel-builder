@@ -1,11 +1,11 @@
 #!/bin/bash
 # This script downloads, extracts, and configures the kernel source
 # for Jetson Linux 36.X on Ubuntu 22.04 Jammy. It ensures necessary
-# dependencies are installed and logs the process for reference.set -e  # Exit on error
+# dependencies are installed and logs the process for reference.
 # Copyright (c) 2016-25 JetsonHacks 
 # MIT License
 
-
+set -e  # Exit on error
 # Set the log directory to ./logs relative to the current working directory
 LOG_DIR="$PWD/logs"
 # Generate a timestamp for the log file name
