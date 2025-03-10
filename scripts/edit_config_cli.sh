@@ -1,6 +1,29 @@
 #!/bin/bash
-# Edit the kernel configuration for NVIDIA Jetson Developer Kit 
-# Copyright (c) 2016-25 JetsonHacks 
+# Command-Line Kernel Configuration Script for NVIDIA Jetson Developer Kit
+# This script enables users to configure the Linux kernel using 'make menuconfig', 
+# a text-based interface for kernel configuration. It verifies the presence of 
+# the required ncurses library and prompts the user to install it if missing.
+# Once dependencies are met, it navigates to the specified kernel source directory 
+# (default: /usr/src/kernel/kernel-jammy-src) and launches 'make menuconfig'.
+#
+# Usage:
+#   ./edit_config_cli.sh [[-d directory ] | [-h]]
+#
+# Options:
+#   -d | --directory  Specify the directory containing the kernel source 
+#                     (default: /usr/src/kernel/kernel-jammy-src)
+#   -h | --help       Display this help message
+#
+# Example:
+#   ./edit_config_cli.sh                   # Use default kernel source directory
+#   ./edit_config_cli.sh -d /custom/kernel/src # Specify a custom kernel source path
+#
+# Notes:
+# - If 'libncurses5-dev' is missing, the script prompts the user to install it.
+# - If the kernel source directory does not exist, the script exits with an error.
+# - Requires sudo permissions to modify kernel configurations.
+#
+# Copyright (c) 2016-25 JetsonHacks
 # MIT License
 
 SOURCE_TARGET="/usr/src"
