@@ -1,8 +1,25 @@
 #!/bin/bash
-# This script downloads, extracts, and configures the kernel source
-# for Jetson Linux 36.X on Ubuntu 22.04 Jammy. It ensures necessary
-# dependencies are installed and logs the process for reference.
-# Copyright (c) 2016-25 JetsonHacks 
+# Kernel Source Retrieval and Setup Script for NVIDIA Jetson Developer Kit
+# This script downloads, extracts, and configures the kernel source for Jetson Linux 36.X on 
+# Ubuntu 22.04 Jammy. It ensures required dependencies are installed, provides options for 
+# backing up or replacing existing sources, and sets up the kernel source for compilation.
+# Logs the entire process for reference.
+#
+# Usage:
+#   ./get_kernel_sources.sh [--force-replace] [--force-backup]
+#
+# Options:
+#   --force-replace  Delete existing kernel sources and download fresh sources.
+#   --force-backup   Backup existing kernel sources before downloading new ones.
+#
+# Example:
+#   ./get_kernel_sources.sh             # Interactive mode: prompts user if sources exist
+#   ./get_kernel_sources.sh --force-replace # Force delete and redownload kernel sources
+#   ./get_kernel_sources.sh --force-backup  # Backup existing sources and download new ones
+#
+# Logs are saved in a 'logs' directory within the script's execution path.
+#
+# Copyright (c) 2016-25 JetsonHacks
 # MIT License
 
 set -e  # Exit on error
