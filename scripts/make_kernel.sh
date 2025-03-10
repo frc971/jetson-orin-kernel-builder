@@ -1,12 +1,29 @@
 #!/bin/bash
-# Build the Linux Kernel on NVIDIA Jetson Developer Kit
-# Copyright (c) 2016-25 Jetsonhacks 
+# Linux Kernel Build Script for NVIDIA Jetson Developer Kit
+# This script automates the process of building the Linux kernel for the NVIDIA Jetson Developer Kit.
+# It verifies the kernel source directory, removes old kernel images, compiles the kernel using 
+# optimal CPU usage, and logs the build process. If the build fails, it retries with a single-threaded build.
+#
+# Usage:
+#   ./make_kernel.sh [[-d directory ] | [-h]]
+#
+# Options:
+#   -d | --directory  Specify the kernel source directory (default: /usr/src)
+#   -h | --help       Display this help message
+#
+# Example:
+#   ./make_kernel.sh                # Build kernel using the default source directory
+#   ./make_kernel.sh -d /custom/path # Build kernel using a custom source path
+#
+# Logs are saved in a 'logs' directory within the script's execution path.
+#
+# Copyright (c) 2016-25 JetsonHacks
 # MIT License
 
 SOURCE_TARGET="/usr/src"
 
 function usage {
-    echo "usage: ./buildKernel.sh [[-d directory ]  | [-h]]"
+    echo "usage: ./make_kernel.sh [[-d directory ]  | [-h]]"
     echo "-d | --directory  Directory path to parent of kernel source"
     echo "-h | --help       Show this help message"
 }
