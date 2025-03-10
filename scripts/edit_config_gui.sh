@@ -1,9 +1,30 @@
 #!/bin/bash
-# This script enables the use of 'make xconfig', which provides a graphical interface to configure Linux kernel options.
-# It checks for required Qt5 libraries and, if missing, offers to install either qtbase5-dev or qtbase5-gles-dev.
-# It then navigates to the specified kernel source directory (default: /usr/src/kernel/kernel-jammy-src)
-# and launches 'make xconfig' with appropriate permissions.
-# Copyright (c) 2016-25 JetsonHacks 
+# Graphical Kernel Configuration Script for NVIDIA Jetson Developer Kit
+# This script enables the use of 'make xconfig', a graphical interface for configuring 
+# Linux kernel options. It checks for required Qt5 libraries and, if missing, offers 
+# to install either qtbase5-dev or qtbase5-gles-dev based on user preference.
+# Once dependencies are met, it navigates to the specified kernel source directory 
+# (default: /usr/src/kernel/kernel-jammy-src) and launches 'make xconfig' with 
+# appropriate permissions.
+#
+# Usage:
+#   ./edit_config_gui.sh [kernel_source_directory]
+#
+# Options:
+#   kernel_source_directory  (Optional) Path to the kernel source directory 
+#                            (default: /usr/src/kernel/kernel-jammy-src)
+#
+# Example:
+#   ./edit_config_gui.sh                   # Use default kernel source directory
+#   ./edit_config_gui.sh /custom/kernel/src # Specify a custom kernel source path
+#
+# Notes:
+# - If required Qt5 libraries (Qt5Core, Qt5Gui, Qt5Widgets) are missing, the script 
+#   prompts the user to install either qtbase5-dev or qtbase5-gles-dev.
+# - If the kernel source directory is not writable, the script attempts to run 
+#   'make xconfig' with sudo.
+#
+# Copyright (c) 2016-25 JetsonHacks
 # MIT License
 
 # Function to check for Qt5 libraries
