@@ -6,7 +6,7 @@ This script automates the process of **building the Linux kernel** for an **NVID
 ## Requirements and Dependencies
 To successfully run this script, ensure the following:
 - **Bash shell** (pre-installed on most Linux systems)
-- **Kernel source code** located in `/usr/src/` or a user-specified directory
+- **Kernel source code** located in `/usr/src/kernel/kernel-jammy-src` or a user-specified directory
 - **Required build tools** installed. Retrieving the source code user get_kernel_sources.sh will install libssl-dev:
   ```bash
   sudo apt-get install -y libssl-dev
