@@ -18,7 +18,7 @@ sudo apt-get update && sudo apt-get install -y libncurses5-dev
 ## Usage
 Run the script using:
 ```bash
-.scripts/edit_config_cli.sh [[-d directory ] | [-h]]
+./scripts/edit_config_cli.sh [[-d directory ] | [-h]]
 ```
 
 ### Options
@@ -28,15 +28,15 @@ Run the script using:
 ### Example Usage
 To edit the kernel configuration using the default kernel source path:
 ```bash
-./editConfig.sh
+./scripts/edit_config_cli.sh
 ```
 To specify a custom kernel source directory:
 ```bash
-./editConfig.sh -d /path/to/kernel/source
+./scripts/edit_config_cli.sh -d /path/to/kernel/source
 ```
 To display the help message:
 ```bash
-./editConfig.sh -h
+./scripts/edit_config_cli.sh -h
 ```
 
 ## Workflow and Key Steps
