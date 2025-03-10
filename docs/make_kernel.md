@@ -16,7 +16,7 @@ To successfully run this script, ensure the following:
 ## Usage
 Run the script using:
 ```bash
-./buildKernel.sh [[-d directory ] | [-h]]
+./scripts/make_kernel.sh [[-d directory ] | [-h]]
 ```
 
 ### Options
