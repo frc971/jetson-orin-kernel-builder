@@ -1,4 +1,34 @@
 #!/bin/bash
+# Kernel Module Installation Script Generator
+# This script generates an installation script for a specified kernel module.
+# The generated script will check the module's compatibility with the running kernel,
+# copy the module to the correct location, update dependencies, and load the module.
+#
+# Usage:
+#   ./install_module_author.sh <module_name> <install_path>
+#
+# Options:
+#   <module_name>   Name of the kernel module (without .ko extension)
+#   <install_path>  Path where the module should be installed under /lib/modules/$(uname -r)/kernel/
+#
+# Example:
+#   ./install_module_author.sh ch341 drivers/usb/serial
+#
+# Output:
+# - Generates a script named install_module_<module_name>.sh
+# - The generated script:
+#   1. Checks if the module file exists in the current directory.
+#   2. Verifies that the module was built for the running kernel.
+#   3. Copies the module to the correct kernel directory.
+#   4. Runs 'depmod -a' to update module dependencies.
+#   5. Loads the module using 'modprobe'.
+#
+# Notes:
+# - The generated script requires root privileges to install the module.
+# - If the module was built for a different kernel version, installation will be aborted.
+#
+# Copyright (c) 2016-25 JetsonHacks
+# MIT License
 
 # Check if exactly two arguments are provided
 if [ $# -ne 2 ]; then
