@@ -36,7 +36,7 @@ Before using these scripts, ensure:
 
 Usage:
 ```bash
-./get_kernel_sources.sh [--force-replace] [--force-backup]
+./scripts/get_kernel_sources.sh [--force-replace] [--force-backup]
 ```
 Options:
 - `--force-replace` → Delete existing kernel sources and downloads fresh sources.
@@ -52,7 +52,7 @@ Launches `make xconfig`, a **graphical interface** for kernel configuration.
 
 Usage:
 ```bash
-./edit_config_gui.sh [kernel_source_directory]
+./scripts/edit_config_gui.sh [kernel_source_directory]
 ```
 _Defaults to `/usr/src/kernel/kernel-jammy-src`._
 
@@ -65,7 +65,7 @@ Launches `make menuconfig`, a **text-based interface** for kernel configuration.
 
 Usage:
 ```bash
-./edit_config_cli.sh [[-d directory] | [-h]]
+./scripts/edit_config_cli.sh [[-d directory] | [-h]]
 ```
 Options:
 - `-d | --directory <path>` → Specify kernel source directory.
@@ -83,7 +83,7 @@ Compiles the Linux kernel for the **Jetson Orin** series.
 
 Usage:
 ```bash
-./buildKernel.sh [[-d directory] | [-h]]
+./scripts/buildKernel.sh [[-d directory] | [-h]]
 ```
 Options:
 - `-d | --directory <path>` → Specify kernel source directory.
@@ -100,7 +100,7 @@ Builds and **optionally installs** kernel modules.
 
 Usage:
 ```bash
-./make_kernel_modules.sh [[-d directory] | [-h]]
+./scripts/make_kernel_modules.sh [[-d directory] | [-h]]
 ```
 Options:
 - `-d | --directory <path>` → Specify kernel source directory.
