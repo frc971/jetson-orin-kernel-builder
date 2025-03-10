@@ -74,7 +74,7 @@ Options:
 ---
 
 ### **3. Build the Kernel**
-#### [`buildKernel.sh`](scripts/buildKernel.sh)
+#### [`make_kernel.sh`](scripts/make_kernel.sh)
 Compiles the Linux kernel for the **Jetson Orin** series.
 - **Checks kernel source path**.
 - **Removes old kernel images** to ensure a clean build.
@@ -83,7 +83,7 @@ Compiles the Linux kernel for the **Jetson Orin** series.
 
 Usage:
 ```bash
-./scripts/buildKernel.sh [[-d directory] | [-h]]
+./scripts/make_kernel.sh [[-d directory] | [-h]]
 ```
 Options:
 - `-d | --directory <path>` → Specify kernel source directory.
