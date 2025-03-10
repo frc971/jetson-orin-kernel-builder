@@ -1,8 +1,24 @@
 #!/bin/bash
 
-# Script to find information about kernel module flags, their dependencies, and configuration types.
-# Helps inexperienced users understand module/feature flags, their status, types, and dependencies.
-# Supports searching for related strings with -s flag.
+# Kernel Module Configuration Analysis Script
+# This script analyzes kernel module flags, their dependencies, and configuration types
+# for the NVIDIA Jetson Developer Kit. It helps users understand module flags, their status,
+# dependencies, and related configurations by searching through Makefiles, Kconfig, and .config.
+# The script also supports searching for related strings within kernel configuration files.
+#
+# Usage:
+#   ./scripts/module_info.sh [-h] [-s <search_string>] <module_flag>
+#
+# Options:
+#   -h    Display help message
+#   -s    Search for a string in Makefiles, Kconfig, and .config (case-insensitive)
+#
+# Example:
+#   ./scripts/module_info.sh CONFIG_LOGITECH_FF  # Analyze a specific config flag
+#   ./scripts/module_info.sh -s usb             # Search for USB-related configurations
+#
+# Copyright (c) 2016-25 JetsonHacks
+# MIT License
 
 # Default kernel source path, can be overridden by environment variable
 KERNEL_URI="${KERNEL_URI:-/usr/src/kernel/kernel-jammy-src}"
