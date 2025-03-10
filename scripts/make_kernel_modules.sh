@@ -1,6 +1,25 @@
 #!/bin/bash
-# make_kernel_modules.sh
-# Description: Builds and optionally installs kernel modules in the specified source directory.
+# Kernel Module Build and Installation Script
+# This script automates the process of building and optionally installing kernel modules
+# for the NVIDIA Jetson Developer Kit. It verifies the kernel source, checks for a valid
+# .config file, compiles the modules with optimal CPU usage, and logs the process.
+# If installation is skipped, it provides instructions for manual installation.
+#
+# Usage:
+#   ./make_kernel_modules.sh [[-d directory ] | [-h]]
+#
+# Options:
+#   -d | --directory  Specify the kernel source directory (default: /usr/src)
+#   -h | --help       Display this help message
+#
+# Example:
+#   ./make_kernel_modules.sh                # Build modules using the default source directory
+#   ./make_kernel_modules.sh -d /custom/path # Build modules using a custom source path
+#
+# Logs are saved in a 'logs' directory within the script's execution path.
+#
+# Copyright (c) 2016-25 JetsonHacks
+# MIT License
 
 # Color functions for consistent output
 red=$(tput setaf 1)
