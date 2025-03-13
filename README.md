@@ -1,7 +1,7 @@
 # jetson-orin-kernel-builder
 Tools to build the Linux kernel and modules on board the **Jetson AGX Orin, Orin Nano, or Orin NX**. This tool is designed for **beginning to intermediate users**. Please **read this entire document before proceeding**.
 
-This is for **JetPack 6**.
+This is for **JetPack 6**. [Supporting video.](https://youtu.be/7P6I2jeJNYo) on YouTube.
 
 ## Overview
 This repository contains **convenience scripts** to simplify the process of:
