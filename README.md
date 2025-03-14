@@ -144,6 +144,10 @@ Features:
 Environment Variables:
 - `KERNEL_URI` : Specifies the kernel source directory (default: `/usr/src/kernel/kernel-jammy-src`).
 
+### Pre-built module
+The prebuilt directory contains pre-compiled linux kernel modules, mostly sourced from the mainline Linux kernel. They are offered as a convenience binary for systems where this in-tree module is not included or enable by default.
+
+
 ---
 
 ## Release History
