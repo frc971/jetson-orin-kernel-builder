@@ -19,9 +19,10 @@
 # - The generated script:
 #   1. Checks if the module file exists in the current directory.
 #   2. Verifies that the module was built for the running kernel.
-#   3. Copies the module to the correct kernel directory.
-#   4. Runs 'depmod -a' to update module dependencies.
-#   5. Loads the module using 'modprobe'.
+#   3. Creates the installation directory if it doesn’t exist.
+#   4. Copies the module to the correct kernel directory.
+#   5. Runs 'depmod -a' to update module dependencies.
+#   6. Loads the module using 'modprobe'.
 #
 # Notes:
 # - The generated script requires root privileges to install the module.
@@ -77,9 +78,10 @@ fi
 
 # Inform the user in detail about the actions to be performed
 echo "This script will perform the following actions:"
-echo "1. Copy \$module_file to \$install_dir using 'sudo cp'"
-echo "2. Update module dependencies with 'sudo depmod -a'"
-echo "3. Load the module '${module_name}' with 'sudo modprobe ${module_name}'"
+echo "1. Ensure \$install_dir exists using 'sudo mkdir -p'"
+echo "2. Copy \$module_file to \$install_dir using 'sudo cp'"
+echo "3. Update module dependencies with 'sudo depmod -a'"
+echo "4. Load the module '${module_name}' with 'sudo modprobe ${module_name}'"
 echo "These steps require root privileges, so you may be prompted for your password."
 
 # Ask for confirmation
@@ -89,24 +91,32 @@ if [ "\$confirm" != "y" ]; then
     exit 1
 fi
 
-# Step 1: Copy the .ko file to the installation directory
-echo "Step 1: Copying \$module_file to \$install_dir using 'sudo cp'"
+# Step 1: Ensure the installation directory exists
+echo "Step 1: Ensuring \$install_dir exists with 'sudo mkdir -p'"
+sudo mkdir -p "\$install_dir"
+if [ \$? -ne 0 ]; then
+    echo "Error: Failed to create directory \$install_dir."
+    exit 1
+fi
+
+# Step 2: Copy the .ko file to the installation directory
+echo "Step 2: Copying \$module_file to \$install_dir using 'sudo cp'"
 sudo cp "\$module_file" "\$install_dir"
 if [ \$? -ne 0 ]; then
     echo "Error: Failed to copy \$module_file to \$install_dir."
     exit 1
 fi
 
-# Step 2: Update module dependencies
-echo "Step 2: Updating module dependencies with 'sudo depmod -a'"
+# Step 3: Update module dependencies
+echo "Step 3: Updating module dependencies with 'sudo depmod -a'"
 sudo depmod -a
 if [ \$? -ne 0 ]; then
     echo "Error: Failed to run depmod."
     exit 1
 fi
 
-# Step 3: Load the module
-echo "Step 3: Loading the module '${module_name}' with 'sudo modprobe ${module_name}'"
+# Step 4: Load the module
+echo "Step 4: Loading the module '${module_name}' with 'sudo modprobe ${module_name}'"
 sudo modprobe "${module_name}"
 if [ \$? -ne 0 ]; then
     echo "Error: Failed to load module ${module_name}."
