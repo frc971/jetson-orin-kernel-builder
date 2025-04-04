@@ -14,6 +14,6 @@ There is a SHA256SUM for each tar file.
 Modules are typically named after their module flag. Modules include:
 
 * USB_SERIAL_CH341 - A driver for CH341 based USB to serial adapters.
-* LP_NF_RAW - Part of Netfilter framework, manipulates packets before they enter the iptables processing chain.
+* IP_NF_RAW - Part of Netfilter framework, manipulates packets before they enter the iptables processing chain.
 
 
