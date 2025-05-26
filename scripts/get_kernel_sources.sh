@@ -1,7 +1,7 @@
 #!/bin/bash
 # Kernel Source Retrieval and Setup Script for NVIDIA Jetson Developer Kit
-# This script downloads, extracts, and configures the kernel source for Jetson Linux 36.X on 
-# Ubuntu 22.04 Jammy. It ensures required dependencies are installed, provides options for 
+# This script downloads, extracts, and configures the kernel source for Jetson Linux 36.X on
+# Ubuntu 22.04 Jammy. It ensures required dependencies are installed, provides options for
 # backing up or replacing existing sources, and sets up the kernel source for compilation.
 # Logs the entire process for reference.
 #
@@ -22,7 +22,7 @@
 # Copyright (c) 2016-25 JetsonHacks
 # MIT License
 
-set -e  # Exit on error
+set -e # Exit on error
 # Set the log directory to ./logs relative to the current working directory
 LOG_DIR="$PWD/logs"
 # Generate a timestamp for the log file name
@@ -31,9 +31,6 @@ TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 LOG_FILE="$LOG_DIR/get_kernel_sources_$TIMESTAMP.log"
 # Ensure the logs directory exists
 mkdir -p "$LOG_DIR"
-
-# Define kernel source directory (for native Jetson builds)
-KERNEL_SRC_DIR="/usr/src/"
 
 # Default behavior (interactive mode)
 FORCE_REPLACE=0
@@ -50,9 +47,9 @@ fi
 # Parse command-line options
 while [[ "$#" -gt 0 ]]; do
   case $1 in
-    --force-replace) FORCE_REPLACE=1 ;;
-    --force-backup) FORCE_BACKUP=1 ;;
-    *) echo "[ERROR] Invalid option: $1" && exit 1 ;;
+  --force-replace) FORCE_REPLACE=1 ;;
+  --force-backup) FORCE_BACKUP=1 ;;
+  *) echo "[ERROR] Invalid option: $1" && exit 1 ;;
   esac
   shift
 done
@@ -65,6 +62,9 @@ log() {
 # Extract L4T version details using sed
 L4T_MAJOR=$(sed -n 's/^.*R\([0-9]\+\).*/\1/p' /etc/nv_tegra_release)
 L4T_MINOR=$(sed -n 's/^.*REVISION: \([0-9]\+\(\.[0-9]\+\)*\).*/\1/p' /etc/nv_tegra_release)
+
+KERNEL_SRC_DIR="/home/nvidia/l4t/r${L4T_MAJOR}.${L4T_MINOR}/"
+mkdir -p ${KERNEL_SRC_DIR}
 
 SOURCE_BASE="https://developer.nvidia.com/embedded/l4t/r${L4T_MAJOR}_release_v${L4T_MINOR}/sources"
 SOURCE_FILE="public_sources.tbz2"
@@ -90,20 +90,20 @@ if [[ -d "$KERNEL_SRC_DIR/kernel" ]]; then
     echo "[B]ackup and download fresh sources"
     read -rp "Enter your choice (K/R/B): " USER_CHOICE
     case "$USER_CHOICE" in
-      [Rr]* ) 
-        log "Deleting existing kernel sources..."
-        sudo rm -rf "$KERNEL_SRC_DIR/kernel"
-        ;;
-      [Bb]* ) 
-        BACKUP_TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-        BACKUP_DIR="${KERNEL_SRC_DIR}kernel_backup_${BACKUP_TIMESTAMP}"
-        log "Backing up existing kernel sources to $BACKUP_DIR..."
-        sudo mv "$KERNEL_SRC_DIR/kernel" "$BACKUP_DIR"
-        ;;
-      * ) 
-        log "Keeping existing kernel sources. Skipping download."
-        exit 0
-        ;;
+    [Rr]*)
+      log "Deleting existing kernel sources..."
+      sudo rm -rf "$KERNEL_SRC_DIR/kernel"
+      ;;
+    [Bb]*)
+      BACKUP_TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+      BACKUP_DIR="${KERNEL_SRC_DIR}kernel_backup_${BACKUP_TIMESTAMP}"
+      log "Backing up existing kernel sources to $BACKUP_DIR..."
+      sudo mv "$KERNEL_SRC_DIR/kernel" "$BACKUP_DIR"
+      ;;
+    *)
+      log "Keeping existing kernel sources. Skipping download."
+      exit 0
+      ;;
     esac
   fi
 fi
@@ -114,8 +114,8 @@ wget -N "$SOURCE_BASE/$SOURCE_FILE"
 log "Extracting sources..."
 # Extract kernel source and related components
 tar -xvf "$SOURCE_FILE" Linux_for_Tegra/source/kernel_src.tbz2 \
-                        Linux_for_Tegra/source/kernel_oot_modules_src.tbz2 \
-                        Linux_for_Tegra/source/nvidia_kernel_display_driver_source.tbz2 --strip-components=2
+  Linux_for_Tegra/source/kernel_oot_modules_src.tbz2 \
+  Linux_for_Tegra/source/nvidia_kernel_display_driver_source.tbz2 --strip-components=2
 
 # Extract each component separately into /usr/src/
 log "Extracting kernel source..."
@@ -132,7 +132,7 @@ log "Kernel sources and modules extracted to $KERNEL_SRC_DIR"
 
 # Copy the current kernel config (requires sudo)
 log "Copying current kernel config..."
-sudo zcat /proc/config.gz | sudo tee "${KERNEL_SRC_DIR}kernel/kernel-jammy-src/.config" > /dev/null
+sudo zcat /proc/config.gz | sudo tee "${KERNEL_SRC_DIR}kernel/kernel-jammy-src/.config" >/dev/null
 
 # Set the local version for the kernel build process
 KERNEL_VERSION=$(uname -r)
@@ -142,17 +142,17 @@ sudo cp .config .config.orig
 sudo bash scripts/config --file .config --set-str LOCALVERSION $LOCAL_VERSION
 
 # Check if libssl-dev is installed
-if ! dpkg -s libssl-dev > /dev/null 2>&1; then
-    log "libssl-dev is not installed. Installing..."
-    sudo apt-get install -y libssl-dev
-    if [ $? -eq 0 ]; then
-        log "libssl-dev installed successfully."
-    else
-        log "Failed to install libssl-dev. Please install it manually."
-        exit 1
-    fi
+if ! dpkg -s libssl-dev >/dev/null 2>&1; then
+  log "libssl-dev is not installed. Installing..."
+  sudo apt-get install -y libssl-dev
+  if [ $? -eq 0 ]; then
+    log "libssl-dev installed successfully."
+  else
+    log "Failed to install libssl-dev. Please install it manually."
+    exit 1
+  fi
 else
-    log "libssl-dev is already installed."
+  log "libssl-dev is already installed."
 fi
 
 log "Kernel source setup complete!"
