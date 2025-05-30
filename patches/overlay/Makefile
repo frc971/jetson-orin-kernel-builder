@@ -68,6 +68,7 @@ dtbo-y += tegra234-p3767-camera-p3768-imx477-A.dtbo
 
 dtbo-y += tegra234-p3767-camera-p3768-imx219-imx296.dtbo
 dtbo-y += tegra234-p3767-camera-p3768-imx477-imx296.dtbo
+dtbo-y += tegra234-p3767-camera-p3768-imx296-imx296.dtbo
 ifneq ($(dtb-y),)
 dtb-y := $(addprefix $(makefile-path)/,$(dtb-y))
 endif
