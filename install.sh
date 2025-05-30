@@ -2,7 +2,7 @@
 # Jetpack 6.1 Orin
 # (Optional) To build faster set the powermode to max by clicking on the nvidia icon on the top right and setting powermode to MAXN (This will require a reboot)
 
-git clone https://github.com/charliehuang09/jetson-orin-kernel-builder
+git clone -b add-double0296 https://github.com/charliehuang09/jetson-orin-kernel-builder
 cd jetson-orin-kernel-builder
 cd scripts
 sudo ./get_kernel_sources.sh
