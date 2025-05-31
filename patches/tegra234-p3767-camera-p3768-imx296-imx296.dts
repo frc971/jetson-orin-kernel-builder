@@ -160,7 +160,7 @@
 								port@1 {
 									reg = <1>;
 									rbpcv3_imx296_csi_out1: endpoint@3 {
-									eremote-endpoint = <&rbpcv3_imx296_vi_in1>;
+										remote-endpoint = <&rbpcv3_imx296_vi_in1>;
 									};
 								};
 							};
