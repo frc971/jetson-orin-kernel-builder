@@ -2,6 +2,9 @@
 # Jetpack 6.1 Orin
 # (Optional) To build faster set the powermode to max by clicking on the nvidia icon on the top right and setting powermode to MAXN (This will require a reboot)
 
+sudo apt install python3-pip -y
+sudo pip3 install -U jetson-stats -y
+
 git clone https://github.com/charliehuang09/jetson-orin-kernel-builder
 cd jetson-orin-kernel-builder
 cd scripts
@@ -34,7 +37,7 @@ sudo ./jetson-io.py
 # What to do after:
 # Edit extlinux.conf to have the imx296 overlay (see example/extlinux.conf) and set up the backup image
 # Reboot
-# sudo insmod l4t/r36.4.0/nvidia-oot/drivers/media/i2c/imx296.ko
+# sudo insmod ~/l4t/r36.4.0/nvidia-oot/drivers/media/i2c/imx296.ko
 # Test with
 # gst-launch-1.0 nvarguscamerasrc sensor-id=0  aelock=true exposuretimerange="100000 200000"  gainrange="1 15"  ispdigitalgainrange="1 1" ! 'video/x-raw(memory:NVMM), width=(int)1456, height=(int)1088, framerate=(fraction)60/1, format=(string)NV12' ! nveglglessink -e
 
