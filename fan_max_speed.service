@@ -1,0 +1,11 @@
+[Unit]
+Description=Set speed to max
+After=nvfancontrol.service
+
+[Service]
+Type=oneshot
+ExecStart=jetson_clocks --fan
+
+[Install]
+WantedBy=multi-user.target
+

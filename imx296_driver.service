@@ -1,0 +1,10 @@
+[Unit]
+Description=Start imx296 camera driver
+
+[Service]
+Type=oneshot
+ExecStart=insmod /home/nvidia/l4t/r36.4.0/nvidia-oot/drivers/media/i2c/imx296.ko
+
+[Install]
+WantedBy=multi-user.target
+
