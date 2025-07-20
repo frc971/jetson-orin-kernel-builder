@@ -1,6 +1,7 @@
 # Prerequisites
 # Jetpack 6.1 Orin
 # (Optional) To build faster set the powermode to max by clicking on the nvidia icon on the top right and setting powermode to MAXN (This will require a reboot)
+# This script should run STANDALONE in the Documents folder
 
 sudo apt install python3-pip -y
 sudo pip3 install -U jetson-stats -y
