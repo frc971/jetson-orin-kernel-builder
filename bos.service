@@ -1,0 +1,10 @@
+[Unit]
+Description=BOS
+After=imx296_driver.service
+
+[Service]
+ExecStart=docker run -v /bos:/bos --rm orin /bos/main
+
+[Install]
+WantedBy=multi-user.target
+
